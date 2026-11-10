@@ -11,6 +11,11 @@ export function validateDocument(doc) {
   }
   const components = new Set(doc.components.map(item => item.id));
   const tables = new Map(doc.tables.map(item => [item.id, item]));
+  if (doc.presentation !== undefined) {
+    const story = doc.presentation, symbols = ['window', 'receipt', 'stock', 'card', 'bank', 'clock'];
+    if (!story || !story.symbols || typeof story.symbols !== 'object' || Array.isArray(story.symbols) || Object.keys(story.symbols).length !== components.size || [...components].some(id => !Object.hasOwn(story.symbols, id) || !symbols.includes(story.symbols[id]))) fail('Presentation requires a known symbol per component');
+    if (!Array.isArray(story.overview) || story.overview.length < 2 || story.overview.length > 3 || new Set(story.overview).size !== story.overview.length || story.overview.some(id => !components.has(id))) fail('Invalid presentation overview');
+  }
   const grouped = new Set();
   if (doc.boundaries !== undefined && !Array.isArray(doc.boundaries)) fail('Invalid boundaries');
   for (const boundary of doc.boundaries ?? []) {
@@ -37,6 +42,15 @@ export function validateDocument(doc) {
   for (const [key, scenario] of Object.entries(doc.scenarios)) {
     if (!/^[a-z][a-z0-9_-]*$/.test(key)) fail(`Invalid scenario ID: ${key}`);
     if (!label(scenario.name) || !Array.isArray(scenario.events) || !scenario.events.length) fail(`Invalid scenario: ${key}`);
+    if (scenario.presentation !== undefined) {
+      const story = scenario.presentation;
+      if (!doc.presentation || !story?.intro || !label(story.intro.title) || !label(story.intro.caption) || !Array.isArray(story.scenes) || story.scenes.length !== scenario.events.length) fail(`Invalid presentation: ${key}`);
+      const evidence = scene => Array.isArray(scene.evidence) && scene.evidence.length <= 3 && new Set(scene.evidence).size === scene.evidence.length && scene.evidence.every(id => tables.has(id));
+      if (!evidence(story.intro)) fail(`Invalid presentation intro evidence: ${key}`);
+      for (const [index, scene] of story.scenes.entries()) {
+        if (scene?.eventId !== scenario.events[index]?.id || !label(scene?.title) || !label(scene?.caption) || !Number.isFinite(scene?.duration) || scene.duration < 1000 || scene.duration > 15000 || !evidence(scene) || ['chapter', 'message', 'protocol', 'note'].some(field => scene[field] !== undefined && !label(scene[field]))) fail(`Invalid presentation scene: ${key}/${index}`);
+      }
+    }
     const events = new Set();
     let time = -1;
     for (const event of scenario.events) {

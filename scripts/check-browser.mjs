@@ -62,6 +62,70 @@ try {
     });
   })()`);
   await screenshot('checkout-desktop');
+  // The presentation is another projection of the same canonical replay.
+  await click('[data-action="presentation"]');
+  await check('presentation starts paused with accessible scene navigation', `document.querySelector('#app').dataset.presentation === 'true' && document.querySelector('#run-state').textContent === 'READY' && document.querySelector('.presentation-scenes [aria-current="step"]').dataset.seek === '0'`);
+  const stageGeometry = await evaluate(`document.querySelectorAll('.present-node').length`);
+  await click('#presentation-stage [data-seek="6"]');
+  await check('presentation webhook establishes captured state and exact endpoints', `document.querySelector('[data-present-record="payment_attempts"]').textContent === 'captured' && document.querySelector('.present-current').dataset.eventId === 'webhook' && document.querySelector('.present-current').dataset.from === 'provider' && document.querySelector('.present-current').dataset.to === 'payments-api'`);
+  await check('presentation focuses each event on its exact two endpoints', `document.querySelectorAll('.present-node').length === 2 && document.querySelector('.present-node[data-select="provider"]') !== null && document.querySelector('.present-node[data-select="payments-api"]') !== null && ${stageGeometry} === 3`);
+  await check('presentation service labels meet 20px at placement size', `[...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99})`);
+  await screenshot('presentation-success-desktop');
+  await click('#presentation-stage [data-seek="2"]');
+  await check('presentation backward seek removes future payment and webhook writes', `document.querySelector('[data-present-record="payment_attempts"]') === null && document.querySelector('[data-present-record="webhook_events"]') === null && document.querySelector('[data-present-record="orders"]').textContent === 'pending'`);
+  await evaluate(`document.querySelector('.present-node[data-select="inventory-api"]').focus()`);
+  await send('Input.dispatchKeyEvent', { type:'keyDown',key:'Enter',code:'Enter' });
+  await check('presentation nodes support keyboard selection and retain focus', `document.querySelector('#app').dataset.selection === 'inventory-api' && document.activeElement.dataset.select === 'inventory-api'`);
+  await send('Input.dispatchKeyEvent', { type:'keyDown',key:'Escape',code:'Escape' });
+  await check('Escape opens exploration at the same canonical step and selection', `document.querySelector('#app').dataset.presentation === 'false' && document.querySelector('#app').dataset.step === '2' && document.querySelector('#app').dataset.selection === 'inventory-api' && document.activeElement.dataset.action === 'presentation'`);
+  await click('[data-action="presentation"]');
+  await click('[data-scenario="timeout"]');
+  await click('#presentation-stage [data-seek="8"]');
+  await check('presentation timeout preserves unknown payment, pending order and held stock', `document.querySelector('[data-present-record="payment_attempts"]').textContent === 'unknown' && document.querySelector('[data-present-record="orders"]').textContent === 'payment_pending' && document.querySelector('[data-present-record="reservations"]').textContent === 'held' && document.querySelector('.scene-copy p').textContent.includes('before any lookup result')`);
+  await send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await wait(`document.querySelector('.present-packet') === null`);
+  await check('presentation reduced motion removes packet animation', `document.querySelector('.presentation-map animateMotion') === null`);
+  await send('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await wait(`document.querySelector('.presentation-map').getAttribute('viewBox') === '0 0 360 380'`);
+  await check('presentation mobile reflows the exchange vertically with readable labels', `document.documentElement.scrollWidth <= 390 && document.querySelector('.presentation-map').getAttribute('viewBox') === '0 0 360 380' && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99})`);
+  await check('presentation transport remains visible in a short mobile viewport', `document.querySelector('.playback').getBoundingClientRect().bottom <= innerHeight + 1 && document.querySelector('.playback').getBoundingClientRect().top >= 0`);
+  await check('mobile transport sits above the scene without covering its diagram', `document.querySelector('.playback').getBoundingClientRect().bottom <= document.querySelector('#presentation-stage').getBoundingClientRect().top + 1`);
+  await screenshot('presentation-timeout-mobile');
+  await send('Emulation.setDeviceMetricsOverride', {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await evaluate(`document.querySelector('#theme').value = 'dark'; document.querySelector('#theme').dispatchEvent(new Event('change',{bubbles:true}));`);
+  await screenshot('presentation-timeout-dark');
+  await evaluate(`document.querySelector('#theme').value = 'light'; document.querySelector('#theme').dispatchEvent(new Event('change',{bubbles:true}));`);
+  await check('presentation supports explicit light mode', `getComputedStyle(document.querySelector('#presentation-stage')).getPropertyValue('--stage-bg').trim() === '#f5f2e9'`);
+  await click('[data-scenario="success"]');
+  await evaluate(`document.querySelector('#speed').value='2';document.querySelector('#speed').dispatchEvent(new Event('change',{bubbles:true}));`);
+  await click('[data-action="play"]');
+  for (let scene = 1; scene <= 9; scene++) await wait(`Number(document.querySelector('#app').dataset.step) >= ${scene}`);
+  await check('paced presentation playback completes success with consistent records', `document.querySelector('#run-state').textContent === 'COMPLETE' && document.querySelector('[data-present-record="orders"]').textContent === 'confirmed' && document.querySelector('[data-present-record="reservations"]').textContent === 'committed'`);
+  await evaluate(`window.__presentationOriginalURL=URL.createObjectURL; URL.createObjectURL=blob=>{window.__presentationDownload=blob;return window.__presentationOriginalURL(blob)};`);
+  await click('[data-action="export"]');
+  await writeFile(join(out,'exported-presentation.html'),await evaluate(`window.__presentationDownload.text()`));
+  await send('Page.navigate',{url:pathToFileURL(join(out,'exported-presentation.html')).href});
+  await wait(`document.querySelector('#app')?.dataset.presentation === 'true'`);
+  await check('exported presentation reopens offline on the stage, paused at introduction', `document.querySelector('#app').dataset.step === '0' && document.querySelector('#run-state').textContent === 'READY' && document.querySelector('.presentation-map') !== null`);
+  for (const scenarioId of ['success', 'timeout']) {
+    await click(`[data-scenario="${scenarioId}"]`);
+    const eventCount = scenarioId === 'success' ? 9 : 8;
+    for (let scene = 1; scene <= eventCount; scene++) {
+      await click(`#presentation-stage [data-seek="${scene}"]`);
+      await check(`${scenarioId} scene ${scene} retains exact endpoint identities and legible symbols`, `(() => {
+        const edge=document.querySelector('.present-current'), nodes=[...document.querySelectorAll('.present-node')];
+        return nodes.length===2 && nodes.some(el=>el.dataset.select===edge.dataset.from) && nodes.some(el=>el.dataset.select===edge.dataset.to) && nodes.every(el=>el.querySelector('.present-symbol').children.length>0) && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99});
+      })()`);
+      await screenshot(`presentation-${scenarioId}-scene-${scene}`);
+    }
+  }
+  await click('[data-scenario="success"]');
+  await click('[data-action="reset"]');
+  await check('presentation reset clears all records' , `document.querySelectorAll('[data-present-record]').length === 0 && [...document.querySelectorAll('#records [data-record]')].every(el=>el.textContent==='not created')`);
+  await click('[data-action="presentation"]');
+  await evaluate(`document.querySelector('#speed').value='1';document.querySelector('#speed').dispatchEvent(new Event('change',{bubbles:true}));`);
+  await send('Emulation.setEmulatedMedia', {features:[]});
+
   await click('[data-action="next"]');
   await check('next event creates order', `document.querySelector('[data-record="orders"]').textContent === 'pending'`);
   await click('[data-seek="9"]');
@@ -280,8 +344,9 @@ try {
   assert.deepEqual(errors, [], 'No uncaught exceptions in Pages landing');
   const source = await readFile('dist/checkout.html');
   const enterpriseSource = await readFile('dist/enterprise.html');
+  const presentationSource = await readFile('dist/checkout-presentation.html');
   const { createHash } = await import('node:crypto');
-  await writeFile(join(out, 'verification.json'), JSON.stringify({ candidate: 'software-anatomy@0.1.0', dependencies: { pele: '1.13.0', gifenc: '1.0.3' }, artifactSha256: createHash('sha256').update(source).digest('hex'), enterpriseArtifactSha256: createHash('sha256').update(enterpriseSource).digest('hex'), checkedAt: new Date().toISOString(), viewport: [1440,1100], mobileViewport: [390,844], checks, errors, externalRequests, boundary: 'Real Chromium, simulated business events; no live provider or database.' }, null, 2) + '\n');
+  await writeFile(join(out, 'verification.json'), JSON.stringify({ candidate: 'software-anatomy@0.1.0', dependencies: { pele: '1.13.0', gifenc: '1.0.3' }, presentationArtifactSha256: createHash('sha256').update(presentationSource).digest('hex'), artifactSha256: createHash('sha256').update(source).digest('hex'), enterpriseArtifactSha256: createHash('sha256').update(enterpriseSource).digest('hex'), checkedAt: new Date().toISOString(), viewport: [1440,1100], mobileViewport: [390,844], checks, errors, externalRequests, boundary: 'Real Chromium, simulated business events; no live provider or database.' }, null, 2) + '\n');
   console.log(`PASS: ${checks.length} real-browser checks. Evidence: output/verification.json`);
 } finally {
   siteServer?.closeAllConnections();

@@ -51,3 +51,31 @@ const dispose = mountAnatomy(document.querySelector('#app'), checkout);
 Include `toolkit/styles.css`. Host one mounted walkthrough per page in this version
 (the control IDs and CSS are page scoped). Standalone HTML includes all scripts,
 styles and document data; opening it makes no application network requests.
+
+## Authored presentation
+
+Optional `presentation.symbols` maps every component ID to one of `window`,
+`receipt`, `stock`, `card`, `bank`, `clock`. `presentation.overview` contains two or
+three component IDs for the introductory composition. Current events show only
+sender and receiver. Desktop exchanges read left to right; phone compositions
+reflow vertically. View positions never become event or record identities.
+
+A scenario opts in with `presentation: { intro: { title, caption, evidence }, scenes }`.
+Each scene is `{ eventId, title, caption, duration, evidence }`, one per event in the
+same order. `evidence` selects up to three table IDs; all displayed values come
+from canonical snapshots. An empty list is valid for the introduction. Optional
+`chapter`, `message`, `protocol` and `note` provide short explanatory text; an intro
+can also supply a `question`. Duration is 1000..15000 presentation milliseconds,
+independent of trace `at`. All text is escaped; IDs, symbols, evidence references
+and duration are validated. Scenes cannot write state. Backward seeks replay from
+the beginning. Preserve unresolved outcomes in the final caption. There are no
+looping packet effects; dashed warning exchanges denote uncertainty rather than
+successful delivery. The checkout deadline has no response arrowhead.
+
+`mountAnatomy(root, doc, { presentation: true })` starts on the stage when the first
+scenario has scenes. Present / Explore preserves scenario, event and selection;
+Escape returns to exploration. Playback is user initiated. Reduced motion removes
+moving packets; mobile scenes reflow without shrinking service labels. The normal
+image/GIF export remains the selected exploration view. Presentation HTML can be
+built with `buildHtml(doc, { presentation: true })`; the bundled checkout entry is
+`checkout-presentation.html`.

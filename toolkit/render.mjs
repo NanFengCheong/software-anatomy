@@ -1,3 +1,4 @@
+import { presentationMarkup } from './presentation.mjs';
 import { validateDocument, snapshot, relatedIds, recordSummary } from './model.mjs';
 import { renderPeleView } from './pele.mjs';
 import { installTheme } from './theme.mjs';
@@ -13,17 +14,18 @@ const statusTone = value => ['confirmed', 'captured', 'committed', 'processed', 
 export function mountAnatomy(root, document, options = {}) {
   const doc = validateDocument(document);
   let scenarioId = Object.keys(doc.scenarios)[0];
+  let presenting = options.presentation === true && !!doc.scenarios[scenarioId].presentation;
   let step = 0, view = 'architecture', selected = null, playing = false, timer = null, speed = 1;
   let panelId = planPanels(doc, scenarioId, view).length ? 'auto' : 'all', exportController = null;
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const byId = id => doc.components.find(item => item.id === id) ?? doc.tables.find(item => item.id === id);
   root.innerHTML = `
     <a class="skip" href="#diagram-title">Skip to diagram</a>
-    <header class="topbar"><a class="wordmark" href="#"><span class="brand-mark">s<span>a</span></span>software anatomy<span class="edition">/ LAB 001</span></a><div class="top-actions"><label class="theme-control"><span>Mode</span><select id="theme" aria-label="Color mode"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button class="button" data-action="open-export">Export image / GIF</button><button class="button export" data-action="export">Export HTML <span aria-hidden="true">↗</span></button></div></header>
+    <header class="topbar"><a class="wordmark" href="#"><span class="brand-mark">s<span>a</span></span>software anatomy<span class="edition">/ LAB 001</span></a><div class="top-actions"><label class="theme-control"><span>Mode</span><select id="theme" aria-label="Color mode"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label>${doc.presentation ? '<button class="button presentation-toggle" data-action="presentation" aria-pressed="false">Present walkthrough</button>' : ''}<button class="button" data-action="open-export">Export image / GIF</button><button class="button export" data-action="export">Export HTML <span aria-hidden="true">↗</span></button></div></header>
     <main>
       <section class="intro"><div><div class="eyebrow">THE SOFTWARE, EXPLAINED.</div><h1>${e(doc.title)}<span class="title-dot">.</span></h1><p>${e(doc.subtitle)}</p></div><div class="example-meta"><span class="meta-number">01</span><span>COMMERCE SYSTEM<br><strong>Interactive walkthrough</strong></span></div></section>
       <section class="workbench" aria-label="Interactive software model">
-        <div class="bench-toolbar"><div class="tabs" role="tablist" aria-label="Diagram view">${[['architecture', 'Architecture', '◇'], ['sequence', 'Sequence', '⇢'], ['erd', 'Data model', '▦']].map(([id, label, icon]) => `<button role="tab" id="tab-${id}" aria-controls="diagram-panel" data-view="${id}"><span aria-hidden="true">${icon}</span> ${label}</button>`).join('')}</div><label class="scenario-label">SCENARIO <select id="scenario" aria-label="Scenario">${Object.entries(doc.scenarios).map(([id, scenario]) => `<option value="${e(id)}">${e(scenario.name)}</option>`).join('')}</select></label></div>
+        <section id="presentation-stage" aria-label="Presentation walkthrough" hidden></section><div class="bench-toolbar"><div class="tabs" role="tablist" aria-label="Diagram view">${[['architecture', 'Architecture', '◇'], ['sequence', 'Sequence', '⇢'], ['erd', 'Data model', '▦']].map(([id, label, icon]) => `<button role="tab" id="tab-${id}" aria-controls="diagram-panel" data-view="${id}"><span aria-hidden="true">${icon}</span> ${label}</button>`).join('')}</div><label class="scenario-label">SCENARIO <select id="scenario" aria-label="Scenario">${Object.entries(doc.scenarios).map(([id, scenario]) => `<option value="${e(id)}">${e(scenario.name)}</option>`).join('')}</select></label></div>
         <div class="bench-body"><section class="diagram-section" id="diagram-panel" role="tabpanel"><div class="diagram-heading"><div><span class="eyebrow" id="view-kicker"></span><h2 id="diagram-title" tabindex="-1"></h2></div><div class="diagram-options"><label class="theme-control diagram-theme"><span>Diagram theme</span><select id="palette" aria-label="Diagram theme"><option value="neutral">Neutral</option><option value="ocean">Ocean</option><option value="forest">Forest</option></select></label><span class="simulation-pill">SIMULATED</span></div></div><div class="canvas-scroll"><div id="diagram"></div></div><div class="diagram-legend"><span><i class="legend-dot active-dot"></i> Current event</span><span><i class="legend-dot selected-dot"></i> Selected component</span><span class="diagram-hint">Select a component to inspect ↗</span></div></section>
         <aside class="inspector" aria-label="Component inspector"><div class="inspector-top"><span class="eyebrow">INSPECTOR</span><button class="icon-button" data-action="clear" aria-label="Clear selection">×</button></div><div id="inspector-content"></div></aside></div>
         <section id="panel-navigation" class="panel-navigation" aria-label="Diagram panels" hidden><label>DETAIL PANEL <select id="panel" aria-label="Detail panel"></select></label><p id="panel-description"></p><div id="continuations"></div></section>
@@ -40,10 +42,25 @@ export function mountAnatomy(root, document, options = {}) {
   function stop() { playing = false; clearTimeout(timer); timer = null; }
   function schedule() {
     clearTimeout(timer);
-    if (playing) timer = setTimeout(() => { step++; if (step >= doc.scenarios[scenarioId].events.length) stop(); render(); schedule(); }, 1400 / speed);
+    if (playing) timer = setTimeout(() => { step++; if (step >= doc.scenarios[scenarioId].events.length) stop(); render(); schedule(); }, (presenting ? step ? doc.scenarios[scenarioId].presentation.scenes[step - 1].duration : 3000 : 1400) / speed);
   }
   function render() {
     const scenario = doc.scenarios[scenarioId], state = snapshot(doc, scenarioId, step);
+    root.classList.toggle('is-presenting', presenting);
+    $('#presentation-stage').hidden = !presenting;
+    $('.skip').href = presenting ? '#presentation-stage' : '#diagram-title';
+    $('.skip').textContent = presenting ? 'Skip to presentation' : 'Skip to diagram';
+    $('#presentation-stage').tabIndex = -1;
+    if (presenting) {
+      const focusedPresentation = $('#presentation-stage').contains(window.document.activeElement) ? window.document.activeElement : null;
+      const focusSelector = focusedPresentation?.dataset.select ? `[data-select="${CSS.escape(focusedPresentation.dataset.select)}"]` : focusedPresentation?.dataset.seek !== undefined ? `[data-seek="${focusedPresentation.dataset.seek}"]` : focusedPresentation?.dataset.scenario ? `[data-scenario="${CSS.escape(focusedPresentation.dataset.scenario)}"]` : focusedPresentation?.classList.contains('presentation-map-scroll') ? '.presentation-map-scroll' : null;
+      const scrollLeft = $('.presentation-map-scroll')?.scrollLeft ?? 0;
+      $('#presentation-stage').innerHTML = presentationMarkup(doc, scenarioId, step, selected, motion.matches, root.clientWidth < 700);
+      $('.presentation-map-scroll').scrollLeft = scrollLeft;
+      if (focusSelector) $('#presentation-stage').querySelector(focusSelector)?.focus({ preventScroll: true });
+    }
+    const presentationToggle = $('[data-action="presentation"]');
+    if (presentationToggle) { presentationToggle.textContent = presenting ? 'Explore system ↗' : 'Present walkthrough'; presentationToggle.setAttribute('aria-pressed', presenting); presentationToggle.disabled = !scenario.presentation; }
     const event = state.event, focus = selected ? relatedIds(doc, selected) : new Set();
     const active = new Set(event ? [event.from, event.to, ...Object.keys(event.writes ?? {})] : []);
     const descriptions = { architecture: ['01 / SYSTEM STRUCTURE', 'Services & responsibilities'], sequence: ['02 / REQUEST LIFECYCLE', 'Messages, in order'], erd: ['03 / PERSISTENCE MODEL', 'Relationships & record state'] };
@@ -93,17 +110,19 @@ export function mountAnatomy(root, document, options = {}) {
       $('#inspector-content').innerHTML = `<div class="empty-orbit"><span>◇</span><i></i><b>↗</b></div><h3>Look a little closer.</h3><p>Select a service, message participant, or table to see its role and connected records.</p><div class="inspector-divider"></div><span class="eyebrow">IN THIS EXAMPLE</span><div class="scope-stats"><span><strong>${doc.components.length}</strong> components</span><span><strong>${doc.tables.length}</strong> record types</span><span><strong>${Object.keys(doc.scenarios).length}</strong> scenarios</span></div><div class="selection-note">All views share the same scenario and event position.</div>`;
     }
     $('#announcement').textContent = `${scenario.name}. Event ${step} of ${scenario.events.length}. ${event?.label ?? 'Ready.'}${step === scenario.events.length ? ` ${scenario.outcome}.` : ''}`;
-    root.dataset.scenario = scenarioId; root.dataset.step = step; root.dataset.view = view; root.dataset.selection = selected ?? ''; root.dataset.panel = panelId;
+    root.dataset.scenario = scenarioId; root.dataset.step = step; root.dataset.view = view; root.dataset.selection = selected ?? ''; root.dataset.panel = panelId; root.dataset.presentation = String(presenting);
   }
   function seek(value) { stop(); step = Math.max(0, Math.min(doc.scenarios[scenarioId].events.length, value)); render(); }
   function changeView(value) { view = value; panelId = panelsFor().length ? 'auto' : 'all'; render(); }
   function click(event) {
-    const target = event.target.closest('[data-action], [data-view], [data-select], [data-seek]');
+    const target = event.target.closest('[data-action], [data-view], [data-select], [data-seek], [data-scenario]');
     if (!target || target === root || !root.contains(target)) return;
+    if (target.dataset.scenario) { stop(); scenarioId = target.dataset.scenario; step = 0; selected = null; panelId = panelsFor().length ? 'auto' : 'all'; render(); return; }
     if (target.dataset.view) return changeView(target.dataset.view);
     if (target.dataset.select) { selected = target.dataset.select; render(); return; }
-    if (target.dataset.seek) return seek(Number(target.dataset.seek));
+    if (target.dataset.seek !== undefined) return seek(Number(target.dataset.seek));
     switch (target.dataset.action) {
+      case 'presentation': stop(); presenting = !presenting; render(); $('[data-action="presentation"]').focus({ preventScroll: true }); break;
       case 'clear': selected = null; render(); break;
       case 'reset': seek(0); break;
       case 'previous': seek(step - 1); break;
@@ -112,7 +131,9 @@ export function mountAnatomy(root, document, options = {}) {
         if (playing) stop(); else { if (step === doc.scenarios[scenarioId].events.length) step = 0; playing = true; }
         render(); schedule(); break;
       case 'export': {
-        const html = options.exportHtml?.() ?? '<!doctype html>\n' + window.document.documentElement.outerHTML;
+        const exportedDocument = window.document.documentElement.cloneNode(true);
+        exportedDocument.querySelector('body').dataset.startPresentation = String(presenting);
+        const html = options.exportHtml?.() ?? '<!doctype html>\n' + exportedDocument.outerHTML;
         const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
         const link = window.document.createElement('a'); link.href = url; link.download = 'software-anatomy.html'; link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000); break;
@@ -132,6 +153,7 @@ export function mountAnatomy(root, document, options = {}) {
       const index = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (views.indexOf(view) + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
       changeView(views[index]); $(`#tab-${view}`).focus(); return;
     }
+    if (event.key === 'Escape' && presenting) { stop(); presenting = false; render(); $('[data-action="presentation"]').focus(); return; }
     if (target.closest('svg [role="button"]') && ['Enter', ' '].includes(event.key)) { event.preventDefault(); target.closest('[role="button"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); return; }
     if (target.closest('input, select, textarea, button, a, [contenteditable="true"]') || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === ' ') { event.preventDefault(); $('[data-action="play"]').click(); }
@@ -140,7 +162,7 @@ export function mountAnatomy(root, document, options = {}) {
     if (event.key.toLowerCase() === 'r') seek(0);
   }
   function change(event) {
-    if (event.target.id === 'scenario') { stop(); scenarioId = event.target.value; step = 0; panelId = panelsFor().length ? 'auto' : 'all'; render(); }
+    if (event.target.id === 'scenario') { stop(); scenarioId = event.target.value; if (!doc.scenarios[scenarioId].presentation) presenting = false; step = 0; panelId = panelsFor().length ? 'auto' : 'all'; render(); }
     if (event.target.id === 'speed') { speed = Number(event.target.value); schedule(); }
     if (event.target.id === 'panel') { panelId = event.target.value; render(); }
     if (event.target.id === 'export-format') { const gif = event.target.value === 'gif'; $('#export-preset-label').hidden = !gif; if (gif) { $('#export-width').value = '960'; $('#export-target').value = 'document'; } }
@@ -174,13 +196,13 @@ export function mountAnatomy(root, document, options = {}) {
   }
   function input(event) { if (event.target.id === 'timeline') seek(Number(event.target.value)); }
   function visibility() { if (window.document.hidden) { stop(); render(); } }
-  function motionChanged() { root.classList.toggle('reduced-motion', motion.matches); }
+  function motionChanged() { root.classList.toggle('reduced-motion', motion.matches); if (presenting) render(); }
   let lastWidth = 0;
   const resize = new ResizeObserver(entries => {
     const width = entries[0].contentRect.width;
     if (Math.abs(width - lastWidth) > 1) { lastWidth = width; render(); }
   });
-  resize.observe($('.canvas-scroll'));
+  resize.observe(root);
   root.addEventListener('click', click); root.addEventListener('keydown', keydown); root.addEventListener('change', change); root.addEventListener('input', input);
   root.addEventListener('submit', exportMedia);
   window.document.addEventListener('visibilitychange', visibility); motion.addEventListener('change', motionChanged);

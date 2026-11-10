@@ -27,8 +27,8 @@ const server = createServer(async (request, response) => {
     catch { response.writeHead(404); response.end('Run npm run build first.'); }
     return;
   }
-  if (!['/', '/checkout.html', '/enterprise.html'].includes(pathname)) { response.writeHead(404); response.end('Not found'); return; }
-  try { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await buildHtml(pathname === '/enterprise.html' ? enterprise : checkout)); }
+  if (!['/', '/checkout.html', '/checkout-presentation.html', '/enterprise.html'].includes(pathname)) { response.writeHead(404); response.end('Not found'); return; }
+  try { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(await buildHtml(pathname === '/enterprise.html' ? enterprise : checkout, { presentation: pathname === '/checkout-presentation.html' })); }
   catch (error) { console.error(error); response.writeHead(500); response.end('Build failed; inspect terminal.'); }
 });
 server.listen(port, '127.0.0.1', () => console.log(`Software Anatomy: http://127.0.0.1:${port}`));

@@ -112,3 +112,13 @@ prove browser behavior. Preserve exact limitations in the task record.
 Pele handles diagram parsing, layout and SVG. Keep scenario state and replay in
 the domain model. Pin upgrades and rerun SVG mapping and browser gates; generated
 SVG class names and message IDs are an adapter contract, not a public model API.
+
+## Present a walkthrough
+
+Checkout includes roughly 40-second authored success and unresolved-timeout
+walkthroughs. Open `dist/checkout-presentation.html` after building, or select Present
+walkthrough in the explorer. Playback is user initiated; scenes share the original
+event IDs, canonical snapshots and component selection. Escape opens exploration.
+Presentation HTML exports reopen on the stage; image/GIF exports still use the
+exploration diagram. See `references/model.md` for optional scene metadata and
+authored symbols, focused exchanges and scene-specific evidence.

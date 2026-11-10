@@ -46,3 +46,75 @@ export const checkout = {
     ] }
   }
 };
+
+// Authored presentation metadata; events and snapshots remain replay truth.
+checkout.presentation = {
+  symbols: { browser: 'window', 'orders-api': 'receipt', 'inventory-api': 'stock', 'payments-api': 'card', provider: 'bank', reconciler: 'clock' },
+  overview: ['inventory-api', 'payments-api', 'orders-api']
+};
+checkout.scenarios.success.presentation = {
+  intro: { title: 'One purchase. More than one promise.', caption: 'Follow a $129 checkout: hold the item, establish payment, then confirm the order. Every scene shows the records behind the promise.' },
+  scenes: [
+    ['submit', 'Start with a durable order.', 'The storefront submits one checkout key. The order exists before payment begins.'],
+    ['reserve', 'Hold the item. Keep the promise open.', 'Inventory reserves one item for this order. Held stock is not yet committed stock.'],
+    ['attempt', 'Record intent before moving money.', 'Create the payment attempt first. Its provider key follows this attempt through the capture request.'],
+    ['capture', 'Ask the provider to capture $129.', 'A request crosses the application boundary. Sending it does not establish that payment succeeded.'],
+    ['accepted', 'Accepted is not captured.', 'The provider acknowledges the request. The attempt is processing; the order still waits.'],
+    ['webhook', 'Now there is capture evidence.', 'A verified webhook records the captured payment and its unique provider event ID.'],
+    ['paid', 'Let the order learn what happened.', 'The payment service reports capture. Only now does the order become paid.'],
+    ['commit', 'Turn the hold into a commitment.', 'Inventory commits the reservation after payment is recorded. The item cannot be released by this flow.'],
+    ['confirm', 'One confirmed order. Consistent records.', 'Payment is captured, inventory is committed, and the storefront receives confirmation. This is a simulated outcome.']
+  ].map(([eventId, title, caption]) => ({ eventId, title, caption, duration: 4300 }))
+};
+checkout.scenarios.timeout.presentation = {
+  intro: { title: 'What if the response never arrives?', caption: 'The same $129 purchase takes an uncertain path. A timeout tells us what we observed—not what happened to the money.' },
+  scenes: [
+    ...checkout.scenarios.success.presentation.scenes.slice(0, 3).map(scene => ({ ...scene })),
+    { eventId: 'capture', title: 'The request leaves. Certainty does not return.', caption: 'The provider may capture the payment even if its response never reaches us. Keep the original provider key.', duration: 4600 },
+    { eventId: 'deadline', title: 'A timeout is an unknown outcome.', caption: 'The response deadline expires. Mark the attempt unknown; do not call it declined and do not assume a refund is due.', duration: 5500 },
+    { eventId: 'pending', title: 'Keep the order pending. Keep stock held.', caption: 'There is no new capture attempt. The order and reservation retain their previous state while payment remains uncertain.', duration: 5000 },
+    { eventId: 'reconcile', title: 'Queue a lookup, not a second charge.', caption: 'Reconciliation will look up the original provider key. Queuing this work proves no payment resolution.', duration: 5000 },
+    { eventId: 'notify', title: 'Tell the customer what is known.', caption: 'Show pending payment. This example ends before any lookup result or later webhook: capture, release and refund remain unproved.', duration: 5500 }
+  ]
+};
+
+// Scene art direction: only the current exchange and evidence needed to explain it.
+const checkoutSceneNotes = {
+  submit: ['THE ORDER', 'Create one order', 'POST /checkout', ['orders'], 'The checkout key identifies this purchase.'],
+  reserve: ['STOCK CUSTODY', 'Hold one item', 'SKU-FIELD-01 × 1', ['orders', 'reservations'], 'Held is a promise to wait. Committed is a promise to fulfil.'],
+  attempt: ['PAYMENT INTENT', 'Persist the attempt', 'pay_ord_1042_1', ['payment_attempts', 'orders'], 'The provider key belongs to this attempt.'],
+  capture: ['ACROSS THE BOUNDARY', 'Capture USD 129.00', 'POST /captures', ['payment_attempts'], 'A request is not evidence of capture.'],
+  accepted: ['ACKNOWLEDGEMENT', 'Request accepted', '202 Accepted', ['payment_attempts'], 'Processing is still an intermediate state.'],
+  webhook: ['CAPTURE EVIDENCE', 'Capture recorded', 'payment.captured / evt_501', ['payment_attempts', 'webhook_events'], 'One verified provider event establishes capture in this example.'],
+  paid: ['ORDER STATE', 'Record payment', 'ord_1042', ['orders', 'payment_attempts'], 'The order can now move forward.'],
+  commit: ['STOCK CUSTODY', 'Commit the item', 'res_801', ['reservations', 'orders'], 'The reservation is no longer releasable in this flow.'],
+  confirm: ['THE CUSTOMER PROMISE', 'Order confirmed', 'ord_1042 / USD 129.00', ['orders', 'payment_attempts', 'reservations'], 'Three records support one customer promise.'],
+  deadline: ['UNCERTAINTY', 'No response observed', 'Response deadline / 5,000 ms', ['payment_attempts', 'reservations'], 'A deadline is a local observation. Capture may still have happened.'],
+  pending: ['PRESERVE CUSTODY', 'Keep the order pending', 'No new capture attempt', ['orders', 'payment_attempts', 'reservations'], 'Neither a stock release nor a refund is justified by timeout alone.'],
+  reconcile: ['RECOVERY WORK', 'Queue a provider lookup', 'Reuse pay_ord_1042_1', ['payment_attempts', 'reservations'], 'Queued work is not a resolved payment.'],
+  notify: ['THE CUSTOMER PROMISE', 'Payment pending', 'Resolution remains open', ['orders', 'payment_attempts', 'reservations'], 'This story ends with uncertainty—not an invented recovery.']
+};
+for (const scenario of Object.values(checkout.scenarios)) {
+  Object.assign(scenario.presentation.intro, { evidence: [], chapter: 'ONE PURCHASE / THREE RESPONSIBILITIES' });
+  for (const scene of scenario.presentation.scenes) {
+    const [chapter, message, protocol, evidence, note] = checkoutSceneNotes[scene.eventId];
+    Object.assign(scene, { chapter, message, protocol, evidence, note });
+  }
+}
+
+const checkoutSceneTitles = {
+  submit: 'Create the order.', reserve: 'Reserve one item.', attempt: 'Write the payment attempt.',
+  capture: 'Send the capture request.', accepted: 'Accepted. Still waiting.', webhook: 'Record the captured payment.',
+  paid: 'Mark the order paid.', commit: 'Commit the reservation.', confirm: 'Confirm the purchase.',
+  deadline: 'No response. No verdict.', pending: 'Hold the order and the item.',
+  reconcile: 'Look up the original payment.', notify: 'Show payment pending.'
+};
+checkout.scenarios.success.presentation.intro.title = 'What makes a checkout complete?';
+checkout.scenarios.timeout.presentation.intro.title = 'The payment may have gone through.';
+for (const scenario of Object.values(checkout.scenarios)) {
+  for (const scene of scenario.presentation.scenes) scene.title = checkoutSceneTitles[scene.eventId];
+}
+
+checkout.scenarios.success.presentation.intro.question = 'When is it safe to tell the customer their order is confirmed?';
+checkout.scenarios.timeout.presentation.intro.question = 'What can we safely promise when payment is uncertain?';
+for (const scenario of Object.values(checkout.scenarios)) scenario.presentation.intro.note = 'One item. USD 129.00. Two possible outcomes.';
