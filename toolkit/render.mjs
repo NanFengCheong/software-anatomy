@@ -19,7 +19,7 @@ export function mountAnatomy(root, document, options = {}) {
   const byId = id => doc.components.find(item => item.id === id) ?? doc.tables.find(item => item.id === id);
   root.innerHTML = `
     <a class="skip" href="#diagram-title">Skip to diagram</a>
-    <header class="topbar"><a class="wordmark" href="#"><span class="brand-mark">s<span>a</span></span>software anatomy<span class="edition">/ LAB 001</span></a><div class="top-actions"><label class="theme-control"><span class="sr-only">Theme</span><select id="theme" aria-label="Theme"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button class="button" data-action="open-export">Export image / GIF</button><button class="button export" data-action="export">Export HTML <span aria-hidden="true">↗</span></button></div></header>
+    <header class="topbar"><a class="wordmark" href="#"><span class="brand-mark">s<span>a</span></span>software anatomy<span class="edition">/ LAB 001</span></a><div class="top-actions"><label class="theme-control"><span>Theme</span><select id="palette" aria-label="Theme palette"><option value="neutral">Neutral</option><option value="ocean">Ocean</option><option value="forest">Forest</option></select></label><label class="theme-control"><span>Mode</span><select id="theme" aria-label="Color mode"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button class="button" data-action="open-export">Export image / GIF</button><button class="button export" data-action="export">Export HTML <span aria-hidden="true">↗</span></button></div></header>
     <main>
       <section class="intro"><div><div class="eyebrow">THE SOFTWARE, EXPLAINED.</div><h1>${e(doc.title)}<span class="title-dot">.</span></h1><p>${e(doc.subtitle)}</p></div><div class="example-meta"><span class="meta-number">01</span><span>COMMERCE SYSTEM<br><strong>Interactive walkthrough</strong></span></div></section>
       <section class="workbench" aria-label="Interactive software model">
@@ -33,7 +33,7 @@ export function mountAnatomy(root, document, options = {}) {
       <footer><span><strong>One model.</strong> Connected perspectives.</span><span>${e(doc.description)}</span></footer>
     </main><dialog id="export-dialog" aria-labelledby="export-title"><div class="export-heading"><h2 id="export-title">Export for the destination</h2><button class="icon-button" data-action="close-export" aria-label="Close export">×</button></div><p class="export-intro">Uses the current view, selection and resolved theme. GIF presets replay one scenario with fixed geometry.</p><form id="export-form"><div class="export-fields"><label>Format<select id="export-format" aria-label="Export format"><option value="svg">SVG</option><option value="png">PNG (2×)</option><option value="gif">GIF walkthrough</option></select></label><label>Composition<select id="export-composition" aria-label="Export composition"><option value="card">Explanation card</option><option value="diagram">Diagram</option></select></label><label>Destination<select id="export-target" aria-label="Export destination"><option value="document">Document</option><option value="slide">Slide</option></select></label><label>Usable width (CSS px)<input id="export-width" aria-label="Export width" type="number" min="320" max="1600" step="1" value="650" required></label><label id="export-preset-label" hidden>GIF scenario<select id="export-preset" aria-label="GIF scenario">${Object.entries(doc.scenarios).map(([id, item]) => `<option value="${e(id)}">${e(item.name)}</option>`).join('')}</select></label></div><p id="export-context" class="export-context"></p><p id="export-progress" role="status" aria-live="polite"></p><div class="export-actions"><button type="button" class="button" data-action="cancel-encoding" hidden>Cancel encoding</button><button type="submit" class="button export-submit">Download</button></div></form></dialog><div id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>`;
   const $ = selector => root.querySelector(selector);
-  const theme = installTheme(root, $('#theme'), { initial: options.theme });
+  const theme = installTheme(root, $('#theme'), { initial: options.theme, palette: options.palette, paletteSelect: $('#palette') });
   $('#export-dialog').addEventListener('cancel', () => exportController?.abort());
   const panelsFor = () => planPanels(doc, scenarioId, view);
   const currentPanel = () => panelId === 'auto' ? panelsFor().find(panel => panel.eventSteps.includes(Math.max(1, step))) ?? panelsFor().find(panel => panel.continuations.some(link => link.globalStep === step && link.fromPanel === panel.id)) ?? panelsFor()[0] : panelsFor().find(panel => panel.id === panelId);
@@ -119,7 +119,7 @@ export function mountAnatomy(root, document, options = {}) {
       }
       case 'open-export':
         stop(); render(); $('#export-preset').value = scenarioId; $('#export-progress').textContent = '';
-        $('#export-context').textContent = `${view} · event ${step}/${doc.scenarios[scenarioId].events.length} · ${currentPanel()?.name ?? 'full system'} · ${theme.resolved}`;
+        $('#export-context').textContent = `${view} · event ${step}/${doc.scenarios[scenarioId].events.length} · ${currentPanel()?.name ?? 'full system'} · ${theme.palette} / ${theme.resolved}`;
         $('#export-dialog').showModal(); break;
       case 'close-export': exportController?.abort(); $('#export-dialog').close(); break;
       case 'cancel-encoding': exportController?.abort(); break;
@@ -155,6 +155,7 @@ export function mountAnatomy(root, document, options = {}) {
     try {
       const format = $('#export-format').value;
       const exportTheme = theme.resolved;
+      const exportPalette = theme.palette;
       const exportScenario = format === 'gif' ? $('#export-preset').value : scenarioId;
       const panel = exportScenario === scenarioId ? currentPanel() : null;
       const count = doc.scenarios[exportScenario].events.length;
@@ -162,12 +163,12 @@ export function mountAnatomy(root, document, options = {}) {
       $('#export-progress').textContent = 'Preparing fixed layout…';
       await new Promise(resolve => setTimeout(resolve, 0));
       if (exportController.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
-      const frames = createMediaFrames(doc, { scenarioId: exportScenario, view, selected, panel, steps, width: Number($('#export-width').value), target: $('#export-target').value, ...( $('#export-target').value === 'slide' ? { height: 560 } : {}), composition: $('#export-composition').value, theme: exportTheme });
+      const frames = createMediaFrames(doc, { scenarioId: exportScenario, view, selected, panel, steps, width: Number($('#export-width').value), target: $('#export-target').value, ...( $('#export-target').value === 'slide' ? { height: 560 } : {}), composition: $('#export-composition').value, theme: exportTheme, palette: exportPalette });
       const blob = format === 'svg' ? svgBlob(frames[0].svg) : format === 'png' ? await svgToPng(frames[0].svg, { scale: 2, signal: exportController.signal }) : await framesToGif(frames, { signal: exportController.signal, onProgress: ({ completed, total }) => { const progress = $('#export-progress'); if (progress) progress.textContent = `Encoding ${completed}/${total} frames…`; } });
       if (exportController.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
-      downloadBlob(blob, `software-anatomy-${exportScenario}-${view}-${exportTheme}.${format}`);
-      $('#export-progress').textContent = `Downloaded ${format.toUpperCase()} · ${frames[0].width} × ${frames[0].height} CSS px · ${(blob.size / 1024).toFixed(0)} KB · ${exportTheme}`;
-      root.dispatchEvent(new CustomEvent('anatomy:export', { detail: { format, frames: frames.length, width: frames[0].width, height: frames[0].height, theme: exportTheme, scenario: exportScenario, bytes: blob.size } }));
+      downloadBlob(blob, `software-anatomy-${exportScenario}-${view}-${exportPalette}-${exportTheme}.${format}`);
+      $('#export-progress').textContent = `Downloaded ${format.toUpperCase()} · ${frames[0].width} × ${frames[0].height} CSS px · ${(blob.size / 1024).toFixed(0)} KB · ${exportPalette} / ${exportTheme}`;
+      root.dispatchEvent(new CustomEvent('anatomy:export', { detail: { format, frames: frames.length, width: frames[0].width, height: frames[0].height, theme: exportTheme, palette: exportPalette, scenario: exportScenario, bytes: blob.size } }));
     } catch (error) { const progress = $('#export-progress'); if (progress) progress.textContent = error.name === 'AbortError' ? 'Export cancelled.' : `Export failed: ${error.message}`; }
     finally { exportController = null; button.disabled = false; const cancel = $('[data-action="cancel-encoding"]'); if (cancel) cancel.hidden = true; }
   }

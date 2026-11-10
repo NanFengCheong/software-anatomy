@@ -3,6 +3,9 @@
 `toolkit/media.mjs` consumes complete, self-contained SVG. The caller supplies
 theme colors, opaque background, final placement dimensions and animation layout.
 The encoder never scales diagrams to fit a destination or changes record state.
+`createMediaFrames` accepts `theme: 'light' | 'dark'` and
+`palette: 'neutral' | 'ocean' | 'forest'` (default Neutral). Browser exports capture
+both before encoding; later UI changes do not recolor frames already in progress.
 
 - `svgBlob(svg)` → typed SVG Blob.
 - `svgToPng(svg, { scale = 2, signal } = {})` → Promise of PNG Blob. Scale changes

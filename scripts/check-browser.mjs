@@ -133,17 +133,26 @@ try {
   await click('[data-view="erd"]');
   await check('exported ERD retains captured payment record inspection', `document.querySelector('#diagram .pele-er') !== null && document.querySelector('#diagram [data-select="payment_attempts"]').textContent.includes('captured')`);
   const select = (selector, value) => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+  await check('Theme and Mode controls stay named and visible on mobile', `(() => {
+    const controls = [...document.querySelectorAll('.theme-control')];
+    return controls.length === 2 && controls.every(el => el.querySelector('span').getBoundingClientRect().width > 0 && getComputedStyle(el.querySelector('span')).fontSize !== '0px') && document.documentElement.scrollWidth <= 390;
+  })()`);
   await select('#theme', 'auto');
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
   await wait(`document.documentElement.dataset.resolvedTheme === 'dark'`);
   await check('Auto theme follows dark system preference', `document.querySelector('#theme').value === 'auto' && document.documentElement.dataset.resolvedTheme === 'dark'`);
   await select('#theme', 'light');
-  await check('Light override stays light under dark system preference', `document.documentElement.dataset.resolvedTheme === 'light' && getComputedStyle(document.body).color === 'rgb(32, 43, 42)'`);
+  await check('Light override stays light under dark system preference', `document.documentElement.dataset.resolvedTheme === 'light' && getComputedStyle(document.body).color === 'rgb(24, 24, 27)'`);
   await select('#theme', 'dark');
-  await check('Dark override uses dark app and diagram palette', `document.documentElement.dataset.theme === 'dark' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#151e1a'`);
+  await check('Neutral is the default palette and Dark uses charcoal surfaces', `document.querySelector('#palette').value === 'neutral' && document.documentElement.dataset.theme === 'dark' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#18181b'`);
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await click('[data-view="sequence"]');
   await screenshot('checkout-dark');
+  await select('#palette', 'forest');
+  await check('Forest remains available without changing color mode or replay state', `document.documentElement.dataset.palette === 'forest' && document.documentElement.dataset.theme === 'dark' && document.querySelector('#app').dataset.step === '9' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#151e1a'`);
+  await select('#palette', 'ocean');
+  await check('Ocean updates app and diagram tokens and persists independently', `document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('software-anatomy-palette') === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30' && getComputedStyle(document.querySelector('#diagram')).getPropertyValue('--pele-bg').trim() === '#121f30'`);
+  await screenshot('checkout-ocean-dark');
   await evaluate(`window.__mediaDownloads=[];window.__mediaReports=[];document.querySelector('#app').addEventListener('anatomy:export',event=>window.__mediaReports.push(event.detail));document.addEventListener('click',event=>{const link=event.target.closest('a[download]');if(!link)return;event.preventDefault();const entry={name:link.download};window.__mediaDownloads.push(entry);fetch(link.href).then(response=>response.blob()).then(blob=>{entry.type=blob.type;entry.size=blob.size;const reader=new FileReader();reader.onload=()=>{entry.base64=reader.result.split(',')[1];};reader.readAsDataURL(blob);});},true);`);
   async function exportThroughUI({ format, composition = 'card', width = 650, preset = 'success', name, changeSystemDuringEncoding = false }) {
     const before = await evaluate('window.__mediaDownloads.length');
@@ -152,7 +161,10 @@ try {
     await evaluate(`document.querySelector('#export-width').value=${width}`);
     if (format === 'gif') await select('#export-preset', preset);
     await click('.export-submit');
-    if (changeSystemDuringEncoding) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+    if (changeSystemDuringEncoding) {
+      await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+      await select('#palette', 'neutral');
+    }
     await wait(`document.querySelector('#export-progress').textContent.includes('Downloaded') || document.querySelector('#export-progress').textContent.includes('failed')`);
     const status = await evaluate(`document.querySelector('#export-progress').textContent`);
     assert.ok(status.startsWith('Downloaded'), status);
@@ -167,7 +179,8 @@ try {
   const svgExport = await exportThroughUI({ format: 'svg', name: 'checkout-dark-card.svg', width: 650 });
   await check('SVG download preserves current theme and canonical record states', `window.__mediaReports.at(-1).format === 'svg' && window.__mediaReports.at(-1).theme === 'dark'`);
   const exportedSvg = await readFile(svgExport.path, 'utf8');
-  assert.ok(exportedSvg.includes('#151e1a') && exportedSvg.includes('captured') && exportedSvg.includes('confirmed'));
+  assert.ok(exportedSvg.includes('#121f30') && exportedSvg.includes('captured') && exportedSvg.includes('confirmed'));
+  assert.equal(svgExport.report.palette, 'ocean');
   await evaluate(`(() => { const fixture=document.createElement('div');fixture.id='export-measure';fixture.style.cssText='position:absolute;left:-10000px;top:0';fixture.innerHTML=${JSON.stringify(exportedSvg)};document.body.append(fixture); })()`);
   await check('exported card places caption below the actual decoded SVG viewport', `(() => { const fixture=document.querySelector('#export-measure');const diagram=fixture.querySelector('svg svg');const caption=fixture.querySelector('[data-export-caption]');return diagram.getBoundingClientRect().bottom < caption.getBoundingClientRect().top; })()`);
   await evaluate(`document.querySelector('#export-measure').remove()`);
@@ -178,10 +191,12 @@ try {
   assert.equal(pngBytes.readUInt32BE(20), pngExport.report.height * 2);
   checks.push('PNG download decodes at 2x exact CSS placement dimensions');
   await select('#theme', 'light');
+  await select('#palette', 'neutral');
   const successGif = await exportThroughUI({ format: 'gif', preset: 'success', name: 'checkout-success-light.gif', width: 960 });
   await select('#theme', 'auto');
+  await select('#palette', 'ocean');
   const timeoutGif = await exportThroughUI({ format: 'gif', preset: 'timeout', name: 'checkout-timeout-dark.gif', width: 960, changeSystemDuringEncoding: true });
-  await check('Auto can change during encoding while GIF retains its captured Dark theme', `document.documentElement.dataset.resolvedTheme === 'light' && window.__mediaReports.at(-1).theme === 'dark'`);
+  await check('Mode and palette can change during encoding while GIF retains captured Ocean Dark', `document.documentElement.dataset.resolvedTheme === 'light' && document.documentElement.dataset.palette === 'neutral' && window.__mediaReports.at(-1).theme === 'dark' && window.__mediaReports.at(-1).palette === 'ocean'`);
   for (const [file, expected] of [[successGif,10],[timeoutGif,9]]) {
     const stream = JSON.parse(execFileSync('ffprobe',['-v','error','-count_frames','-show_entries','stream=width,height,nb_read_frames','-of','json',file.path],{encoding:'utf8'})).streams[0];
     assert.equal(Number(stream.nb_read_frames), expected);
@@ -190,15 +205,16 @@ try {
   checks.push('both downloaded checkout GIF presets decode with exact frame counts and fixed canvas');
   await check('exported offline HTML includes functioning GIF encoder with no CDN', `window.__mediaReports.filter(item=>item.format==='gif').length === 2 && window.__mediaReports.at(-1).theme === 'dark'`);
   await select('#theme','dark');
+  await select('#palette','ocean');
   await evaluate(`window.__nativeURL=URL.createObjectURL;URL.createObjectURL=blob=>{window.__htmlDownload=blob;return window.__nativeURL(blob);};`);
   await click('[data-action="export"]');
   const darkHtml = await evaluate('window.__htmlDownload.text()');
   await writeFile(join(out,'exported-dark-checkout.html'),darkHtml);
-  await evaluate(`localStorage.setItem('software-anatomy-theme','light')`);
+  await evaluate(`localStorage.setItem('software-anatomy-theme','light');localStorage.setItem('software-anatomy-palette','forest')`);
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
   await send('Page.navigate', { url: pathToFileURL(join(out,'exported-dark-checkout.html')).href });
   await wait(`document.querySelector('#app')?.dataset.step === '0'`);
-  await check('offline HTML preserves explicit Dark preference over storage and OS Light', `document.querySelector('#theme').value === 'dark' && document.documentElement.dataset.resolvedTheme === 'dark'`);
+  await check('offline HTML preserves Ocean Dark over storage and OS preferences', `document.querySelector('#theme').value === 'dark' && document.documentElement.dataset.resolvedTheme === 'dark' && document.querySelector('#palette').value === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30'`);
   await send('Page.navigate', { url: pathToFileURL(resolve('dist/enterprise.html')).href });
   await wait(`document.querySelector('#app')?.dataset.panel === 'auto'`);
   await check('enterprise opens authored panel and original model counts', `!document.querySelector('#panel-navigation').hidden && document.querySelector('#inspector-content').textContent.includes('16') && document.querySelectorAll('[data-record]').length === 11`);
@@ -247,6 +263,8 @@ try {
   await check('Pages landing loads relative module and all demo links under project prefix', `document.querySelector('a[href="enterprise.html"]').href.includes('/software-anatomy/enterprise.html') && document.querySelector('a[href="checkout.html"]').href.includes('/software-anatomy/checkout.html')`);
   await select('#theme','dark');
   await check('Pages landing supports explicit Dark theme', `document.documentElement.dataset.resolvedTheme === 'dark'`);
+  await select('#palette','ocean');
+  await check('Pages palette selector uses the same Ocean tokens as walkthroughs', `document.querySelector('#palette').value === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30'`);
   await screenshot('site-desktop-dark');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await check('Pages mobile contains wide preview without shrinking labels or page overflow', `document.documentElement.scrollWidth <= 390 && document.querySelector('.diagram-scroll').scrollWidth > document.querySelector('.diagram-scroll').clientWidth && Math.min(...[...document.querySelectorAll('.diagram-scroll svg text')].map(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)}))>=13.9`);

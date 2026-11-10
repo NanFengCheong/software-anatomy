@@ -37,12 +37,12 @@ export function diagramSource(options = {}) {
 
 export function renderAgentSvg(options = {}) {
   const projection = diagramSource(options);
-  const palette = themePalette(options.theme ?? 'light');
+  const palette = themePalette(options.theme ?? 'light', options.palette ?? 'neutral');
   const result = renderForTarget(projection.source, { target: options.target ?? 'document', ...(options.width !== undefined ? { width: options.width } : {}), ...(options.height !== undefined ? { height: options.height } : {}) });
   const colors = `--pele-bg:${palette.surface};--pele-fg:${palette.ink};--pele-muted:${palette.muted};--pele-line:${palette.diagramLine};--pele-surface:${palette.diagramSurface};--pele-surface-alt:${palette.diagramAlt};--pele-border:${palette.diagramBorder};background:${palette.surface};`;
   const escaped = value => String(value).replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`);
   const metadata = { scenario: projection.scenario, view: projection.view, step: projection.step, panel: projection.panel, eventSteps: projection.eventSteps, continuations: projection.continuations };
   const description = projection.continuations.map(link => `${link.fromPanel} -> ${link.toPanel}: ${link.eventId ?? link.relationId}; ${link.from} -> ${link.to}; ${link.label}`).join('\n');
   const svg = result.svg.replace(/(<svg\b[^>]*\bstyle=")/, `$1${colors}`).replace(/<svg\b[^>]*>/, tag => `${tag}<metadata>${escaped(JSON.stringify(metadata))}</metadata><desc>${escaped(description || `Simulated ${projection.view} diagram, event ${projection.step}`)}</desc>`);
-  return { ...projection, svg, report: result.report, theme: options.theme ?? 'light' };
+  return { ...projection, svg, report: result.report, theme: options.theme ?? 'light', palette: options.palette ?? 'neutral' };
 }

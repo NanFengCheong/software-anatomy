@@ -14,7 +14,8 @@ and record snapshot.
 - Follow a request across services, messages and persisted records. Selection
   stays connected when switching views.
 - Play, pause, step and scrub success, timeout and compensation scenarios.
-- Choose **Auto / Light / Dark**. Auto follows the OS; explicit preferences persist.
+- Choose **Neutral / Ocean / Forest** and **Auto / Light / Dark** independently.
+  Neutral is the default; Auto follows the OS. Both choices persist.
 - Export offline HTML, SVG, 2× PNG and GIF walkthroughs with resolved theme,
   fixed animation geometry, captions and record summaries.
 - Render for the destination's usable width and height. Reflow precedes scaling;

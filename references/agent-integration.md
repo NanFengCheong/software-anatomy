@@ -70,8 +70,10 @@ browser's canvas encoder; they are not server-side MCP media tools.
 
 Pass either `example: "checkout" | "enterprise"` or `model: <document>` to model
 tools. Diagram calls accept scenario, view, step, panel, target, width and theme
-(`light` or `dark`) as applicable; use `tools/list` for each exact schema and
-defaults. Render/build results return a `resource_link` to a bounded in-memory
+(`light` or `dark`) as applicable. `render_svg` also accepts `palette`:
+`neutral` (default), `ocean` or `forest`; CLI render uses `--palette`.
+Use `tools/list` for each exact schema and defaults.
+Render/build results return a `resource_link` to a bounded in-memory
 artifact. Read that URI through MCP `resources/read`, then let the client save the
 content. Restarting the server discards its artifact cache; save artifacts you need.
 

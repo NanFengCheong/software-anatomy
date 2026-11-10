@@ -36,9 +36,11 @@ The renderer supports one representative record per entity; it is not a database
 engine or infrastructure discovery tool. Arbitrary Mermaid input alone cannot
 provide the ownership, events and record writes needed for connected playback.
 
-Auto/Light/Dark uses `toolkit/theme.mjs`: Auto follows OS changes; explicit modes
-persist and exported HTML retains its preference. Media captures the resolved
-palette in opaque, self-contained SVG, including captions, warnings and records.
+Theme and Mode selectors use `toolkit/theme.mjs`: Neutral is the default palette;
+Ocean and Forest are alternatives. Auto/Light/Dark controls brightness independently.
+Auto follows OS changes; both choices persist and exported HTML retains them.
+Media captures the resolved palette in opaque, self-contained SVG, including
+captions, warnings and records. Agent SVG/CLI rendering accepts `palette` as well.
 
 Run `npm ci` to install pinned Pele. For a standalone example, use
 `buildHtml(document)` from `scripts/build.mjs`; it embeds Pele, its license, the

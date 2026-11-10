@@ -35,7 +35,7 @@ export function createMediaFrames(doc, options = {}) {
   const composition = options.composition ?? 'card';
   if (!['card', 'diagram'].includes(composition)) throw new RangeError('Unknown export composition');
   const view = options.view ?? 'sequence';
-  const palette = themePalette(options.theme ?? 'light');
+  const palette = themePalette(options.theme ?? 'light', options.palette ?? 'neutral');
   const width = options.width ?? 650;
   if (!Number.isInteger(width) || width < 320 || width > 1600) throw new RangeError('Export width must be 320–1600 CSS px');
   const panel = options.panel;
@@ -119,7 +119,7 @@ export function createMediaFrames(doc, options = {}) {
       return {
         svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="font-family:sans-serif;background:${palette.surface}" role="img" aria-label="${xml(`${doc.title}, ${scenario.name}, event ${state.step}`)}">${body}</svg>`,
         width, height, delay: index === states.length - 1 ? 2200 : 1000,
-        step: state.step, theme: options.theme ?? 'light', eventId: state.event?.id ?? null,
+        step: state.step, theme: options.theme ?? 'light', palette: options.palette ?? 'neutral', eventId: state.event?.id ?? null,
         diagramGeometry: dimensions, minFontSize: Number(stage.dataset.minFontSize)
       };
     });

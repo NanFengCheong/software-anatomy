@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { themePalette, resolveTheme, installTheme } from '../toolkit/theme.mjs';
 
-function fixture({ osDark = false, saved, exported, blocked = false } = {}) {
+function fixture({ osDark = false, saved, savedPalette, exported, exportedPalette, blocked = false } = {}) {
   const media = new EventTarget(); media.matches = osDark;
   const writes = [];
   const window = {
@@ -10,16 +10,17 @@ function fixture({ osDark = false, saved, exported, blocked = false } = {}) {
     matchMedia: query => { assert.equal(query, '(prefers-color-scheme: dark)'); return media; },
     get localStorage() {
       if (blocked) throw new Error('Storage denied');
-      return { getItem: () => saved, setItem: (key, value) => writes.push([key, value]) };
+      return { getItem: key => key === 'software-anatomy-palette' ? savedPalette : saved, setItem: (key, value) => writes.push([key, value]) };
     }
   };
   const properties = new Map();
-  const html = { dataset: exported ? { theme: exported } : {}, style: { setProperty: (key, value) => properties.set(key, value) } };
+  const html = { dataset: { ...(exported ? { theme: exported } : {}), ...(exportedPalette ? { palette: exportedPalette } : {}) }, style: { setProperty: (key, value) => properties.set(key, value) } };
   const root = new EventTarget(); root.dataset = {};
   root.ownerDocument = { defaultView: window, documentElement: html };
   const select = new EventTarget(); select.value = '';
+  const paletteSelect = new EventTarget(); paletteSelect.value = '';
   const system = value => { media.matches = value; media.dispatchEvent(new Event('change')); };
-  return { root, select, html, writes, properties, system };
+  return { root, select, paletteSelect, html, writes, properties, system };
 }
 
 test('auto resolves system preference and explicit modes override it', () => {
@@ -45,7 +46,7 @@ test('Auto tracks OS changes while explicit selection persists and stays stable'
   f.select.value = 'light'; f.select.dispatchEvent(new Event('change'));
   assert.equal(controller.preference, 'light');
   assert.equal(f.select.value, 'light');
-  assert.deepEqual(f.writes.at(-1), ['software-anatomy-theme', 'light']);
+  assert.deepEqual(f.writes.findLast(([key]) => key === 'software-anatomy-theme'), ['software-anatomy-theme', 'light']);
   f.system(false); f.system(true);
   assert.equal(controller.resolved, 'light');
   assert.equal(f.html.style.colorScheme, 'light');
@@ -92,12 +93,48 @@ function luminance(hex) {
 }
 function contrast(a, b) { const l = [luminance(a), luminance(b)].sort((a, b) => a - b); return (l[1] + 0.05) / (l[0] + 0.05); }
 
-test('both palettes retain readable normal, selected and warning text', () => {
-  for (const mode of ['light', 'dark']) {
-    const p = themePalette(mode);
+test('all palettes retain readable normal, selected and warning text in both modes', () => {
+  for (const name of ['neutral', 'ocean', 'forest']) for (const mode of ['light', 'dark']) {
+    const p = themePalette(mode, name);
     for (const [fg, bg] of [['ink', 'surface'], ['muted', 'surface'], ['muted', 'panel'], ['accent', 'accentSoft'], ['amber', 'amberSoft'], ['selected', 'selectedSoft']]) {
-      assert.ok(contrast(p[fg], p[bg]) >= 4.5, `${mode}: ${fg}/${bg} contrast ${contrast(p[fg], p[bg])}`);
+      assert.ok(contrast(p[fg], p[bg]) >= 4.5, `${name}/${mode}: ${fg}/${bg} contrast ${contrast(p[fg], p[bg])}`);
     }
     assert.ok(Object.isFrozen(p));
   }
+});
+
+test('palette selection persists independently of mode and follows Auto across OS changes', () => {
+  const f = fixture();
+  const controller = installTheme(f.root, f.select, { paletteSelect: f.paletteSelect });
+  assert.equal(controller.palette, 'neutral');
+  f.paletteSelect.value = 'ocean'; f.paletteSelect.dispatchEvent(new Event('change'));
+  assert.equal(controller.preference, 'auto');
+  assert.equal(f.html.dataset.palette, 'ocean');
+  assert.deepEqual(f.writes.at(-1), ['software-anatomy-palette', 'ocean']);
+  f.system(true);
+  assert.equal(controller.palette, 'ocean');
+  assert.equal(f.properties.get('--surface'), themePalette('dark', 'ocean').surface);
+  assert.throws(() => controller.setPalette('invalid'), RangeError);
+  assert.equal(controller.palette, 'ocean');
+  controller.destroy();
+  f.paletteSelect.value = 'forest'; f.paletteSelect.dispatchEvent(new Event('change'));
+  assert.equal(controller.palette, 'ocean');
+});
+
+test('exported palette wins over storage, and storage denial still allows switching', () => {
+  for (const blocked of [true, false]) {
+    const f = fixture({ savedPalette: 'forest', exportedPalette: 'ocean', blocked });
+    const controller = installTheme(f.root, f.select, { paletteSelect: f.paletteSelect });
+    assert.equal(controller.palette, 'ocean');
+    assert.doesNotThrow(() => controller.setPalette('neutral'));
+    assert.equal(f.html.dataset.palette, 'neutral');
+    controller.destroy();
+  }
+  for (const [savedPalette, expected] of [['forest', 'forest'], ['invalid', 'neutral']]) {
+    const f = fixture({ savedPalette });
+    const controller = installTheme(f.root, f.select);
+    assert.equal(controller.palette, expected);
+    controller.destroy();
+  }
+  assert.throws(() => themePalette('light', '__proto__'), RangeError);
 });
