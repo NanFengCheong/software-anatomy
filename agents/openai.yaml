@@ -1,0 +1,4 @@
+interface:
+  display_name: "Software Anatomy"
+  short_description: "Connected software diagrams with scenario playback"
+  default_prompt: "Use $software-anatomy to explain a checkout flow with connected architecture, sequence and ERD views."

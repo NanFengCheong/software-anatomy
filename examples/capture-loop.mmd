@@ -1,0 +1,8 @@
+flowchart LR
+  documents["Documents and tracker records"] --> ingest["Ingest with source identity"]
+  ingest --> profiles["Profiles, rules, history and artifact indexes"]
+  profiles --> context["Resolve scope and assemble task context"]
+  context --> work["Work and decisions"]
+  work --> proposal["Proposed knowledge changes"]
+  proposal --> review["Human review"]
+  review --> profiles

@@ -1,0 +1,28 @@
+{
+  "name": "software-anatomy",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/NanFengCheong/software-anatomy.git" },
+  "homepage": "https://nanfengcheong.github.io/software-anatomy/",
+  "type": "module",
+  "description": "Connected software walkthroughs with Pele-rendered Mermaid diagrams.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "npm run build && node scripts/check-browser.mjs",
+    "test:site": "node scripts/check-site.mjs",
+    "cli": "node scripts/cli.mjs",
+    "mcp": "node scripts/mcp-server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "gifenc": "1.0.3",
+    "pele": "1.13.0",
+    "zod": "4.6.7"
+  }
+}
