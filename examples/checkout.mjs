@@ -50,7 +50,11 @@ export const checkout = {
 // Authored presentation metadata; events and snapshots remain replay truth.
 checkout.presentation = {
   symbols: { browser: 'window', 'orders-api': 'receipt', 'inventory-api': 'stock', 'payments-api': 'card', provider: 'bank', reconciler: 'clock' },
-  overview: ['inventory-api', 'payments-api', 'orders-api']
+  layout: [
+    { id: 'browser', x: 130, y: 280 }, { id: 'orders-api', x: 400, y: 280 },
+    { id: 'inventory-api', x: 400, y: 70 }, { id: 'payments-api', x: 700, y: 280 },
+    { id: 'provider', x: 1000, y: 280 }, { id: 'reconciler', x: 700, y: 70 }
+  ]
 };
 checkout.scenarios.success.presentation = {
   intro: { title: 'One purchase. More than one promise.', caption: 'Follow a $129 checkout: hold the item, establish payment, then confirm the order. Every scene shows the records behind the promise.' },

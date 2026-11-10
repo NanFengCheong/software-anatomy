@@ -121,4 +121,4 @@ walkthrough in the explorer. Playback is user initiated; scenes share the origin
 event IDs, canonical snapshots and component selection. Escape opens exploration.
 Presentation HTML exports reopen on the stage; image/GIF exports still use the
 exploration diagram. See `references/model.md` for optional scene metadata and
-authored symbols, focused exchanges and scene-specific evidence.
+authored symbols, persistent connected layout and step-specific evidence.

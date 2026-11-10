@@ -65,10 +65,16 @@ try {
   // The presentation is another projection of the same canonical replay.
   await click('[data-action="presentation"]');
   await check('presentation starts paused with accessible scene navigation', `document.querySelector('#app').dataset.presentation === 'true' && document.querySelector('#run-state').textContent === 'READY' && document.querySelector('.presentation-scenes [aria-current="step"]').dataset.seek === '0'`);
-  const stageGeometry = await evaluate(`document.querySelectorAll('.present-node').length`);
+  const stageGeometry = await evaluate(`(() => {
+    window.__canvas = document.querySelector('.presentation-map');
+    window.__canvasNodes = [...document.querySelectorAll('.present-node')];
+    window.__canvasWires = [...document.querySelectorAll('[data-channel]')];
+    return JSON.stringify({ nodes:window.__canvasNodes.map(el=>[el.dataset.select,el.getAttribute('transform')]), wires:window.__canvasWires.map(el=>[el.dataset.channel,el.getAttribute('d')]) });
+  })()`);
   await click('#presentation-stage [data-seek="6"]');
   await check('presentation webhook establishes captured state and exact endpoints', `document.querySelector('[data-present-record="payment_attempts"]').textContent === 'captured' && document.querySelector('.present-current').dataset.eventId === 'webhook' && document.querySelector('.present-current').dataset.from === 'provider' && document.querySelector('.present-current').dataset.to === 'payments-api'`);
-  await check('presentation focuses each event on its exact two endpoints', `document.querySelectorAll('.present-node').length === 2 && document.querySelector('.present-node[data-select="provider"]') !== null && document.querySelector('.present-node[data-select="payments-api"]') !== null && ${stageGeometry} === 3`);
+  await check('presentation keeps the same SVG, all six nodes and five connected channels while highlighting two endpoints', `document.querySelector('.presentation-map') === window.__canvas && document.querySelectorAll('.present-node').length === 6 && document.querySelectorAll('[data-channel]').length === 5 && document.querySelectorAll('.present-active').length === 2 && window.__canvasNodes.every(el=>el.isConnected) && window.__canvasWires.every(el=>el.isConnected)`);
+  await check('highlighting an event preserves the complete layout geometry', `JSON.stringify({nodes:[...document.querySelectorAll('.present-node')].map(el=>[el.dataset.select,el.getAttribute('transform')]),wires:[...document.querySelectorAll('[data-channel]')].map(el=>[el.dataset.channel,el.getAttribute('d')])}) === ${JSON.stringify(stageGeometry)}`);
   await check('presentation service labels meet 20px at placement size', `[...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99})`);
   await screenshot('presentation-success-desktop');
   await click('#presentation-stage [data-seek="2"]');
@@ -80,16 +86,28 @@ try {
   await check('Escape opens exploration at the same canonical step and selection', `document.querySelector('#app').dataset.presentation === 'false' && document.querySelector('#app').dataset.step === '2' && document.querySelector('#app').dataset.selection === 'inventory-api' && document.activeElement.dataset.action === 'presentation'`);
   await click('[data-action="presentation"]');
   await click('[data-scenario="timeout"]');
+  await evaluate(`document.querySelector('#presentation-stage [data-seek="5"]').scrollIntoView({block:'center'})`);
+  const stepPoint = await evaluate(`(() => {const r=document.querySelector('#presentation-stage [data-seek="5"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
+  await check('persistent canvas step navigation is not covered by the transport', `document.elementFromPoint(${stepPoint.x},${stepPoint.y}).closest('[data-seek]')?.dataset.seek==='5'`);
+  await send('Input.dispatchMouseEvent', {type:'mousePressed',...stepPoint,button:'left',clickCount:1});
+  await send('Input.dispatchMouseEvent', {type:'mouseReleased',...stepPoint,button:'left',clickCount:1});
+  await check('native pointer on step five selects unknown payment without replacing the canvas', `document.querySelector('#app').dataset.step==='5' && document.querySelector('[data-present-record="payment_attempts"]').textContent==='unknown' && document.querySelector('.presentation-map')===window.__canvas`);
+  await evaluate(`window.scrollTo(0,0)`);
   await click('#presentation-stage [data-seek="8"]');
   await check('presentation timeout preserves unknown payment, pending order and held stock', `document.querySelector('[data-present-record="payment_attempts"]').textContent === 'unknown' && document.querySelector('[data-present-record="orders"]').textContent === 'payment_pending' && document.querySelector('[data-present-record="reservations"]').textContent === 'held' && document.querySelector('.scene-copy p').textContent.includes('before any lookup result')`);
   await send('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   await wait(`document.querySelector('.present-packet') === null`);
   await check('presentation reduced motion removes packet animation', `document.querySelector('.presentation-map animateMotion') === null`);
   await send('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:true});
-  await wait(`document.querySelector('.presentation-map').getAttribute('viewBox') === '0 0 360 380'`);
-  await check('presentation mobile reflows the exchange vertically with readable labels', `document.documentElement.scrollWidth <= 390 && document.querySelector('.presentation-map').getAttribute('viewBox') === '0 0 360 380' && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99})`);
+  await wait(`document.documentElement.scrollWidth <= 390`);
+  await check('presentation mobile scrolls the same full canvas without shrinking labels', `document.documentElement.scrollWidth <= 390 && document.querySelector('.presentation-map').getAttribute('viewBox') === '0 0 1130 410' && document.querySelector('.presentation-map-scroll').scrollWidth > document.querySelector('.presentation-map-scroll').clientWidth && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99})`);
   await check('presentation transport remains visible in a short mobile viewport', `document.querySelector('.playback').getBoundingClientRect().bottom <= innerHeight + 1 && document.querySelector('.playback').getBoundingClientRect().top >= 0`);
   await check('mobile transport sits above the scene without covering its diagram', `document.querySelector('.playback').getBoundingClientRect().bottom <= document.querySelector('#presentation-stage').getBoundingClientRect().top + 1`);
+  await evaluate(`document.querySelector('.presentation-map-scroll').scrollLeft=500`);
+  await click('#presentation-stage [data-seek="7"]');
+  await check('seeking preserves canvas identity and the manually chosen mobile viewport', `document.querySelector('.presentation-map')===window.__canvas && document.querySelector('.presentation-map-scroll').scrollLeft===500`);
+  await click('#presentation-stage [data-seek="8"]');
+  await evaluate(`document.querySelector('.presentation-map-scroll').scrollLeft=0`);
   await screenshot('presentation-timeout-mobile');
   await send('Emulation.setDeviceMetricsOverride', {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
   await evaluate(`document.querySelector('#theme').value = 'dark'; document.querySelector('#theme').dispatchEvent(new Event('change',{bubbles:true}));`);
@@ -100,6 +118,7 @@ try {
   await evaluate(`document.querySelector('#speed').value='2';document.querySelector('#speed').dispatchEvent(new Event('change',{bubbles:true}));`);
   await click('[data-action="play"]');
   for (let scene = 1; scene <= 9; scene++) await wait(`Number(document.querySelector('#app').dataset.step) >= ${scene}`);
+  await check('automatic playback retains the SVG and every node', `document.querySelector('.presentation-map')===window.__canvas && window.__canvasNodes.every(el=>el.isConnected)`);
   await check('paced presentation playback completes success with consistent records', `document.querySelector('#run-state').textContent === 'COMPLETE' && document.querySelector('[data-present-record="orders"]').textContent === 'confirmed' && document.querySelector('[data-present-record="reservations"]').textContent === 'committed'`);
   await evaluate(`window.__presentationOriginalURL=URL.createObjectURL; URL.createObjectURL=blob=>{window.__presentationDownload=blob;return window.__presentationOriginalURL(blob)};`);
   await click('[data-action="export"]');
@@ -107,6 +126,8 @@ try {
   await send('Page.navigate',{url:pathToFileURL(join(out,'exported-presentation.html')).href});
   await wait(`document.querySelector('#app')?.dataset.presentation === 'true'`);
   await check('exported presentation reopens offline on the stage, paused at introduction', `document.querySelector('#app').dataset.step === '0' && document.querySelector('#run-state').textContent === 'READY' && document.querySelector('.presentation-map') !== null`);
+  await evaluate(`window.__persistentCanvas=document.querySelector('.presentation-map');window.__persistentNodes=[...document.querySelectorAll('.present-node')];window.__persistentWires=[...document.querySelectorAll('[data-channel]')];`);
+  const persistentBounds = await evaluate(`JSON.stringify([...document.querySelectorAll('.present-node')].map(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height]}))`);
   for (const scenarioId of ['success', 'timeout']) {
     await click(`[data-scenario="${scenarioId}"]`);
     const eventCount = scenarioId === 'success' ? 9 : 8;
@@ -114,13 +135,14 @@ try {
       await click(`#presentation-stage [data-seek="${scene}"]`);
       await check(`${scenarioId} scene ${scene} retains exact endpoint identities and legible symbols`, `(() => {
         const edge=document.querySelector('.present-current'), nodes=[...document.querySelectorAll('.present-node')];
-        return nodes.length===2 && nodes.some(el=>el.dataset.select===edge.dataset.from) && nodes.some(el=>el.dataset.select===edge.dataset.to) && nodes.every(el=>el.querySelector('.present-symbol').children.length>0) && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99});
+        return document.querySelector('.presentation-map')===window.__persistentCanvas && window.__persistentNodes.every(el=>el.isConnected) && window.__persistentWires.every(el=>el.isConnected) && nodes.length===6 && JSON.stringify(nodes.map(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height]})) === ${JSON.stringify(persistentBounds)} && document.querySelectorAll('.present-active').length===2 && nodes.some(el=>el.dataset.select===edge.dataset.from) && nodes.some(el=>el.dataset.select===edge.dataset.to) && nodes.every(el=>el.querySelector('.present-symbol').children.length>0) && [...document.querySelectorAll('.present-node-name')].every(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)>=19.99});
       })()`);
       await screenshot(`presentation-${scenarioId}-scene-${scene}`);
     }
   }
   await click('[data-scenario="success"]');
   await click('[data-action="reset"]');
+  await check('scenario changes and reset retain the same connected canvas', `document.querySelector('.presentation-map')===window.__persistentCanvas && window.__persistentNodes.every(el=>el.isConnected) && window.__persistentWires.every(el=>el.isConnected)`);
   await check('presentation reset clears all records' , `document.querySelectorAll('[data-present-record]').length === 0 && [...document.querySelectorAll('#records [data-record]')].every(el=>el.textContent==='not created')`);
   await click('[data-action="presentation"]');
   await evaluate(`document.querySelector('#speed').value='1';document.querySelector('#speed').dispatchEvent(new Event('change',{bubbles:true}));`);

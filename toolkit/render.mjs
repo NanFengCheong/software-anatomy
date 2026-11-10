@@ -55,7 +55,18 @@ export function mountAnatomy(root, document, options = {}) {
       const focusedPresentation = $('#presentation-stage').contains(window.document.activeElement) ? window.document.activeElement : null;
       const focusSelector = focusedPresentation?.dataset.select ? `[data-select="${CSS.escape(focusedPresentation.dataset.select)}"]` : focusedPresentation?.dataset.seek !== undefined ? `[data-seek="${focusedPresentation.dataset.seek}"]` : focusedPresentation?.dataset.scenario ? `[data-scenario="${CSS.escape(focusedPresentation.dataset.scenario)}"]` : focusedPresentation?.classList.contains('presentation-map-scroll') ? '.presentation-map-scroll' : null;
       const scrollLeft = $('.presentation-map-scroll')?.scrollLeft ?? 0;
-      $('#presentation-stage').innerHTML = presentationMarkup(doc, scenarioId, step, selected, motion.matches, root.clientWidth < 700);
+      const canvas = $('.presentation-map-scroll');
+      $('#presentation-stage').innerHTML = presentationMarkup(doc, scenarioId, step, selected);
+      if (canvas) {
+        const nextCanvas = $('.presentation-map-scroll');
+        for (const selector of ['.present-current', '.present-step', ...doc.components.map(item => `[data-select="${CSS.escape(item.id)}"]`), ...[...canvas.querySelectorAll('[data-channel]')].map(item => `[data-channel="${CSS.escape(item.dataset.channel)}"]`)]) {
+          const existing = canvas.querySelector(selector), next = nextCanvas.querySelector(selector);
+          for (const name of existing.getAttributeNames()) if (!next.hasAttribute(name)) existing.removeAttribute(name);
+          for (const attribute of next.attributes) existing.setAttribute(attribute.name, attribute.value);
+          if (selector === '.present-step') existing.querySelector('text').textContent = next.querySelector('text').textContent;
+        }
+        nextCanvas.replaceWith(canvas);
+      }
       $('.presentation-map-scroll').scrollLeft = scrollLeft;
       if (focusSelector) $('#presentation-stage').querySelector(focusSelector)?.focus({ preventScroll: true });
     }

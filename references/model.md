@@ -55,10 +55,15 @@ styles and document data; opening it makes no application network requests.
 ## Authored presentation
 
 Optional `presentation.symbols` maps every component ID to one of `window`,
-`receipt`, `stock`, `card`, `bank`, `clock`. `presentation.overview` contains two or
-three component IDs for the introductory composition. Current events show only
-sender and receiver. Desktop exchanges read left to right; phone compositions
-reflow vertically. View positions never become event or record identities.
+`receipt`, `stock`, `card`, `bank`, `clock`. `presentation.layout` supplies one
+`{ id, x, y }` per component on the persistent
+1130×410 canvas. Positions are bounded to x=105..1025, y=66..320; 210×146 hit/label
+boxes must not overlap. All nodes and the union of flow channels across scenarios
+remain visible at fixed coordinates. Playback highlights the current endpoints and
+direction in place; node, channel and SVG DOM identities survive updates, scenario
+changes and reset. Phones scroll this same canvas without shrinking labels or
+moving components. The viewport's scroll position is preserved. View positions
+never become event or record identities.
 
 A scenario opts in with `presentation: { intro: { title, caption, evidence }, scenes }`.
 Each scene is `{ eventId, title, caption, duration, evidence }`, one per event in the
@@ -74,8 +79,8 @@ successful delivery. The checkout deadline has no response arrowhead.
 
 `mountAnatomy(root, doc, { presentation: true })` starts on the stage when the first
 scenario has scenes. Present / Explore preserves scenario, event and selection;
-Escape returns to exploration. Playback is user initiated. Reduced motion removes
-moving packets; mobile scenes reflow without shrinking service labels. The normal
+Escape returns to exploration. Playback is user initiated. There are no looping motion effects. Phones scroll
+the retained canvas without shrinking service labels. The normal
 image/GIF export remains the selected exploration view. Presentation HTML can be
 built with `buildHtml(doc, { presentation: true })`; the bundled checkout entry is
 `checkout-presentation.html`.
