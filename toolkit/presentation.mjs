@@ -28,23 +28,32 @@ export function presentationMarkup(doc, scenarioId, step, selected) {
     const a = positions.get(item.from), b = positions.get(item.to), dx = b.x - a.x, dy = b.y - a.y;
     return Math.abs(dx) >= Math.abs(dy)
       ? [a.x + Math.sign(dx) * 64, a.y, b.x - Math.sign(dx) * 64, b.y]
-      : [a.x, a.y + (dy > 0 ? 92 : -62), b.x, b.y + (dy > 0 ? -62 : 92)];
+      : [a.x, a.y + (dy > 0 ? 78 : -52), b.x, b.y + (dy > 0 ? -52 : 78)];
   }
-  const link = item => { const [x1, y1, x2, y2] = endpoints(item); return `M${x1},${y1} L${x2},${y2}`; };
+  const link = item => {
+    const [x1, y1, x2, y2] = endpoints(item), dx = x2 - x1, dy = y2 - y1;
+    return dy === 0 ? `M${x1},${y1} C${x1 + dx / 3},${y1 - 12} ${x2 - dx / 3},${y2 - 12} ${x2},${y2}` : `M${x1},${y1} C${x1 + 3},${y1 + dy / 3} ${x2 + 3},${y2 - dy / 3} ${x2},${y2}`;
+  };
   const current = event ?? channels[0][1], [x1, y1, x2, y2] = endpoints(current);
   const selectedItem = components.get(selected) ?? doc.tables.find(item => item.id === selected);
   return `<div class="presentation-heading"><span class="presentation-series">SOFTWARE ANATOMY <span>/</span> ${esc(doc.title.toUpperCase())}</span><div class="presentation-scenarios" role="group" aria-label="Presentation scenario">${Object.entries(doc.scenarios).filter(([, item]) => item.presentation).map(([id, item]) => `<button data-scenario="${esc(id)}" aria-pressed="${id === scenarioId}">${esc(item.short ?? item.name)}</button>`).join('')}</div><span class="presentation-simulation">SIMULATED</span></div>
     <div class="presentation-scene ${warning ? 'scene-warning' : ''} ${end ? 'scene-ending' : ''}" data-scene="${esc(event?.id ?? 'intro')}">
       <div class="scene-copy"><span class="scene-number">${String(step).padStart(2, '0')}<span> / ${String(scenario.events.length).padStart(2, '0')}</span></span><h3>${esc(scene.title)}</h3><p>${esc(scene.caption)}</p><span class="scene-footnote">${esc(scene.note ?? (event ? 'One event. The state it leaves behind.' : 'Follow the sequence. Inspect the evidence.'))}</span></div>
       <div class="scene-visual"><div class="scene-visual-label"><span>FULL CONNECTED FLOW</span><span>${event ? esc(event.id) : 'overview'}</span></div>
-        <div class="presentation-map-scroll" tabindex="0" role="region" aria-label="Connected checkout flow; scroll to inspect the full canvas"><svg class="presentation-map" viewBox="0 0 1130 410" role="group" aria-label="${esc(doc.title)}: persistent connected flow">
+        <div class="presentation-map-scroll" tabindex="0" role="region" aria-label="Connected checkout flow; scroll to inspect the full canvas"><svg class="presentation-map" viewBox="0 0 1130 340" role="group" aria-label="${esc(doc.title)}: persistent connected flow">
           <defs><marker id="present-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1 9 5 1 9" fill="none" stroke="var(--scene-accent)" stroke-width="1.5"/></marker></defs>
+          ${(doc.boundaries ?? []).map(boundary => {
+            const members = boundary.members.map(id => positions.get(id));
+            if (!members.length) return '';
+            const left = Math.min(...members.map(item => item.x)) - 112, right = Math.max(...members.map(item => item.x)) + 112;
+            return `<rect class="present-zone" x="${left}" y="2" width="${right - left}" height="330" rx="24"/><text class="present-zone-label" x="${left + 18}" y="17">${esc(boundary.name)}</text>`;
+          }).join('')}
           ${channels.map(([id, item]) => `<path class="present-wire ${traversed.has(id) ? 'present-traversed' : ''}" data-channel="${esc(id)}" data-from="${esc(item.from)}" data-to="${esc(item.to)}" d="${link(item)}"/>`).join('')}
           <path class="present-current ${warning ? 'present-warning' : ''}" d="${link(current)}" data-event-id="${esc(event?.id ?? '')}" data-from="${esc(event?.from ?? '')}" data-to="${esc(event?.to ?? '')}" visibility="${event ? 'visible' : 'hidden'}" ${event?.id === 'deadline' ? '' : 'marker-end="url(#present-arrow)"'}/>
-          <g class="present-step" transform="translate(${(x1 + x2) / 2} ${(y1 + y2) / 2})" visibility="${event ? 'visible' : 'hidden'}"><circle r="12"/><text text-anchor="middle" y="5">${step}</text></g>
+          <g class="present-step" transform="translate(${(x1 + x2) / 2 + (y1 === y2 ? 0 : 2.25)} ${(y1 + y2) / 2 - (y1 === y2 ? 9 : 0)})" visibility="${event ? 'visible' : 'hidden'}"><circle r="12"/><text text-anchor="middle" y="5">${step}</text></g>
           ${locations.map(position => {
             const item = components.get(position.id), symbol = doc.presentation.symbols[item.id], active = event && [event.from, event.to].includes(item.id);
-            return `<g class="present-node ${active ? 'present-active' : ''} ${selected === item.id ? 'present-selected' : ''}" transform="translate(${position.x} ${position.y})" data-select="${esc(item.id)}" role="button" tabindex="0" aria-label="Inspect ${esc(item.name)}" aria-pressed="${selected === item.id}"><rect class="present-hit" x="-105" y="-66" width="210" height="146" rx="8"/><g class="present-symbol symbol-${esc(symbol)}">${presentationSymbols[symbol]}</g><text class="present-node-name" x="0" y="78" text-anchor="middle">${esc(item.name)}</text></g>`;
+            return `<g class="present-node ${active ? 'present-active' : ''} ${selected === item.id ? 'present-selected' : ''}" transform="translate(${position.x} ${position.y})" data-select="${esc(item.id)}" role="button" tabindex="0" aria-label="Inspect ${esc(item.name)}" aria-pressed="${selected === item.id}"><rect class="present-hit" x="-105" y="-54" width="210" height="130" rx="8"/><circle class="present-medallion medallion-${esc(symbol)}" r="48"/><g class="present-symbol symbol-${esc(symbol)}" transform="scale(.82)">${presentationSymbols[symbol]}</g><text class="present-node-name" x="0" y="70" text-anchor="middle">${esc(item.name)}</text></g>`;
           }).join('')}
         </svg></div><p class="persistent-map-hint">Scroll to follow the connected flow →</p>
         <div class="presentation-message"><span>${event ? `${esc(source.name)} → ${esc(target.name)}` : 'Reservation → payment → order'}</span><strong>${esc(scene.message ?? event?.label ?? 'Follow the purchase')}</strong></div>

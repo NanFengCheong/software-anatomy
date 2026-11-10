@@ -57,7 +57,7 @@ styles and document data; opening it makes no application network requests.
 Optional `presentation.symbols` maps every component ID to one of `window`,
 `receipt`, `stock`, `card`, `bank`, `clock`. `presentation.layout` supplies one
 `{ id, x, y }` per component on the persistent
-1130×410 canvas. Positions are bounded to x=105..1025, y=66..320; 210×146 hit/label
+1130×340 canvas. Positions are bounded to x=105..1025, y=54..250; 210×130 hit/label
 boxes must not overlap. All nodes and the union of flow channels across scenarios
 remain visible at fixed coordinates. Playback highlights the current endpoints and
 direction in place; node, channel and SVG DOM identities survive updates, scenario

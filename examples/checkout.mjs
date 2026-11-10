@@ -51,9 +51,9 @@ export const checkout = {
 checkout.presentation = {
   symbols: { browser: 'window', 'orders-api': 'receipt', 'inventory-api': 'stock', 'payments-api': 'card', provider: 'bank', reconciler: 'clock' },
   layout: [
-    { id: 'browser', x: 130, y: 280 }, { id: 'orders-api', x: 400, y: 280 },
-    { id: 'inventory-api', x: 400, y: 70 }, { id: 'payments-api', x: 700, y: 280 },
-    { id: 'provider', x: 1000, y: 280 }, { id: 'reconciler', x: 700, y: 70 }
+    { id: 'browser', x: 130, y: 230 }, { id: 'orders-api', x: 400, y: 230 },
+    { id: 'inventory-api', x: 400, y: 70 }, { id: 'payments-api', x: 700, y: 230 },
+    { id: 'provider', x: 1000, y: 230 }, { id: 'reconciler', x: 700, y: 70 }
   ]
 };
 checkout.scenarios.success.presentation = {

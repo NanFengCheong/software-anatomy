@@ -16,10 +16,10 @@ export function validateDocument(doc) {
     if (!story || !story.symbols || typeof story.symbols !== 'object' || Array.isArray(story.symbols) || Object.keys(story.symbols).length !== components.size || [...components].some(id => !Object.hasOwn(story.symbols, id) || !symbols.includes(story.symbols[id]))) fail('Presentation requires a known symbol per component');
     if (!Array.isArray(story.layout) || story.layout.length !== components.size || new Set(story.layout.map(item => item?.id)).size !== components.size) fail('Presentation requires one layout position per component');
     for (const item of story.layout) {
-      if (!components.has(item?.id) || !Number.isFinite(item.x) || !Number.isFinite(item.y) || item.x < 105 || item.x > 1025 || item.y < 66 || item.y > 320) fail('Invalid presentation layout');
+      if (!components.has(item?.id) || !Number.isFinite(item.x) || !Number.isFinite(item.y) || item.x < 105 || item.x > 1025 || item.y < 54 || item.y > 250) fail('Invalid presentation layout');
     }
     for (const [index, item] of story.layout.entries()) {
-      if (story.layout.slice(index + 1).some(other => Math.abs(item.x - other.x) < 210 && Math.abs(item.y - other.y) < 146)) fail('Overlapping presentation layout');
+      if (story.layout.slice(index + 1).some(other => Math.abs(item.x - other.x) < 210 && Math.abs(item.y - other.y) < 130)) fail('Overlapping presentation layout');
     }
   }
   const grouped = new Set();
