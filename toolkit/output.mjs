@@ -5,7 +5,7 @@ import { render as renderPele } from 'pele';
 export const outputTargets = Object.freeze({
   document: Object.freeze({ width: 650, fontSize: 18, minFontSize: 14, overflow: 'reject' }),
   slide: Object.freeze({ width: 1120, height: 560, fontSize: 26, minFontSize: 20, overflow: 'reject' }),
-  interactive: Object.freeze({ width: 960, fontSize: 18, minFontSize: 14, overflow: 'scroll' })
+  interactive: Object.freeze({ width: 960, fontSize: 14, minFontSize: 14, overflow: 'scroll' })
 });
 
 export class OutputFitError extends RangeError {

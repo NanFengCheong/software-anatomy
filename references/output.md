@@ -15,7 +15,12 @@ const { svg, report } = renderForTarget(source, {
 | --- | --- | --- | --- |
 | document | 650px × automatic height | 18 / 14px | Throw, report needs-panels |
 | slide | 1120 × 560px | 26 / 20px | Throw, report needs-panels |
-| interactive | Actual container width | 18 / 14px | Preserve size and scroll |
+| interactive | Actual container width | 14 / 14px | Preserve size and scroll |
+
+Interactive labels sit below the surrounding section heading in the visual
+hierarchy. Pele may raise the base to preserve the 14px floor for secondary
+labels; do not enlarge sparse diagrams to fill their container. Document and
+slide presets use larger type for their intended viewing distance.
 
 Supply width, optional height, fontSize and minFontSize for the real destination.
 Measure content after margins and columns. Convert points using 96 CSS pixels per

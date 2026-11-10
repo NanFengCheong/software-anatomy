@@ -54,6 +54,13 @@ try {
   await wait(`document.querySelector('#app')?.dataset.step === '0'`);
   await check('architecture is rendered by bundled Pele from Mermaid', `document.querySelector('#diagram').dataset.renderer === 'pele' && document.querySelector('#diagram .pele-architecture') !== null && document.querySelector('#diagram .pele-service') !== null`);
   await check('desktop architecture labels meet 14px placement floor', labelFloor);
+  await check('interactive architecture labels stay below section heading size', `(() => {
+    const headingSize = parseFloat(getComputedStyle(document.querySelector('.diagram-heading h2')).fontSize);
+    return [...document.querySelectorAll('#diagram svg text')].filter(el => el.textContent.trim()).every(el => {
+      const m = el.getScreenCTM();
+      return parseFloat(getComputedStyle(el).fontSize) * Math.hypot(m.a,m.b) < headingSize;
+    });
+  })()`);
   await screenshot('checkout-desktop');
   await click('[data-action="next"]');
   await check('next event creates order', `document.querySelector('[data-record="orders"]').textContent === 'pending'`);
