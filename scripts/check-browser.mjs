@@ -148,10 +148,12 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await click('[data-view="sequence"]');
   await screenshot('checkout-dark');
+  await evaluate(`window.__pageColors = ['.topbar','.inspector','.playback'].map(selector => { const el = document.querySelector(selector);const css = getComputedStyle(el);return [css.backgroundColor,css.color]; });`);
   await select('#palette', 'forest');
-  await check('Forest remains available without changing color mode or replay state', `document.documentElement.dataset.palette === 'forest' && document.documentElement.dataset.theme === 'dark' && document.querySelector('#app').dataset.step === '9' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#151e1a'`);
+  await check('Forest changes the diagram without changing page mode or replay state', `document.documentElement.dataset.palette === 'forest' && document.documentElement.dataset.theme === 'dark' && document.querySelector('#app').dataset.step === '9' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#18181b' && getComputedStyle(document.querySelector('#diagram')).getPropertyValue('--pele-bg').trim() === '#151e1a'`);
   await select('#palette', 'ocean');
-  await check('Ocean updates app and diagram tokens and persists independently', `document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('software-anatomy-palette') === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30' && getComputedStyle(document.querySelector('#diagram')).getPropertyValue('--pele-bg').trim() === '#121f30'`);
+  await check('Ocean updates only diagram tokens and persists independently', `document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('software-anatomy-palette') === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#18181b' && getComputedStyle(document.querySelector('#diagram')).getPropertyValue('--pele-bg').trim() === '#121f30'`);
+  await check('Diagram theme selector is beside the diagram and leaves page surfaces unchanged', `document.querySelector('.diagram-heading #palette') !== null && JSON.stringify(window.__pageColors) === JSON.stringify(['.topbar','.inspector','.playback'].map(selector => { const css=getComputedStyle(document.querySelector(selector));return [css.backgroundColor,css.color]; }))`);
   await screenshot('checkout-ocean-dark');
   await evaluate(`window.__mediaDownloads=[];window.__mediaReports=[];document.querySelector('#app').addEventListener('anatomy:export',event=>window.__mediaReports.push(event.detail));document.addEventListener('click',event=>{const link=event.target.closest('a[download]');if(!link)return;event.preventDefault();const entry={name:link.download};window.__mediaDownloads.push(entry);fetch(link.href).then(response=>response.blob()).then(blob=>{entry.type=blob.type;entry.size=blob.size;const reader=new FileReader();reader.onload=()=>{entry.base64=reader.result.split(',')[1];};reader.readAsDataURL(blob);});},true);`);
   async function exportThroughUI({ format, composition = 'card', width = 650, preset = 'success', name, changeSystemDuringEncoding = false }) {
@@ -214,7 +216,7 @@ try {
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
   await send('Page.navigate', { url: pathToFileURL(join(out,'exported-dark-checkout.html')).href });
   await wait(`document.querySelector('#app')?.dataset.step === '0'`);
-  await check('offline HTML preserves Ocean Dark over storage and OS preferences', `document.querySelector('#theme').value === 'dark' && document.documentElement.dataset.resolvedTheme === 'dark' && document.querySelector('#palette').value === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30'`);
+  await check('offline HTML preserves Ocean diagrams and neutral Dark page over storage and OS preferences', `document.querySelector('#theme').value === 'dark' && document.documentElement.dataset.resolvedTheme === 'dark' && document.querySelector('#palette').value === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#18181b' && getComputedStyle(document.querySelector('#diagram')).getPropertyValue('--pele-bg').trim() === '#121f30'`);
   await send('Page.navigate', { url: pathToFileURL(resolve('dist/enterprise.html')).href });
   await wait(`document.querySelector('#app')?.dataset.panel === 'auto'`);
   await check('enterprise opens authored panel and original model counts', `!document.querySelector('#panel-navigation').hidden && document.querySelector('#inspector-content').textContent.includes('16') && document.querySelectorAll('[data-record]').length === 11`);
@@ -264,7 +266,7 @@ try {
   await select('#theme','dark');
   await check('Pages landing supports explicit Dark theme', `document.documentElement.dataset.resolvedTheme === 'dark'`);
   await select('#palette','ocean');
-  await check('Pages palette selector uses the same Ocean tokens as walkthroughs', `document.querySelector('#palette').value === 'ocean' && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#121f30'`);
+  await check('Pages diagram selector changes preview colors while page stays neutral', `document.querySelector('.hero-figure #palette').value === 'ocean' && document.querySelector('.nav #palette') === null && getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() === '#18181b' && getComputedStyle(document.querySelector('.diagram-scroll')).getPropertyValue('--pele-bg').trim() === '#121f30'`);
   await screenshot('site-desktop-dark');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await check('Pages mobile contains wide preview without shrinking labels or page overflow', `document.documentElement.scrollWidth <= 390 && document.querySelector('.diagram-scroll').scrollWidth > document.querySelector('.diagram-scroll').clientWidth && Math.min(...[...document.querySelectorAll('.diagram-scroll svg text')].map(el=>{const m=el.getScreenCTM();return parseFloat(getComputedStyle(el).fontSize)*Math.hypot(m.a,m.b)}))>=13.9`);

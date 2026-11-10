@@ -14,13 +14,15 @@ function fixture({ osDark = false, saved, savedPalette, exported, exportedPalett
     }
   };
   const properties = new Map();
+  const diagramProperties = new Map();
+  const diagram = { style: { setProperty: (key, value) => diagramProperties.set(key, value) } };
   const html = { dataset: { ...(exported ? { theme: exported } : {}), ...(exportedPalette ? { palette: exportedPalette } : {}) }, style: { setProperty: (key, value) => properties.set(key, value) } };
   const root = new EventTarget(); root.dataset = {};
   root.ownerDocument = { defaultView: window, documentElement: html };
   const select = new EventTarget(); select.value = '';
   const paletteSelect = new EventTarget(); paletteSelect.value = '';
   const system = value => { media.matches = value; media.dispatchEvent(new Event('change')); };
-  return { root, select, paletteSelect, html, writes, properties, system };
+  return { root, select, paletteSelect, html, writes, properties, diagram, diagramProperties, system };
 }
 
 test('auto resolves system preference and explicit modes override it', () => {
@@ -103,17 +105,21 @@ test('all palettes retain readable normal, selected and warning text in both mod
   }
 });
 
-test('palette selection persists independently of mode and follows Auto across OS changes', () => {
+test('diagram palette persists without repainting the page and follows Auto across OS changes', () => {
   const f = fixture();
-  const controller = installTheme(f.root, f.select, { paletteSelect: f.paletteSelect });
+  const controller = installTheme(f.root, f.select, { paletteSelect: f.paletteSelect, diagrams: [f.diagram] });
   assert.equal(controller.palette, 'neutral');
+  const page = new Map(f.properties);
   f.paletteSelect.value = 'ocean'; f.paletteSelect.dispatchEvent(new Event('change'));
   assert.equal(controller.preference, 'auto');
   assert.equal(f.html.dataset.palette, 'ocean');
   assert.deepEqual(f.writes.at(-1), ['software-anatomy-palette', 'ocean']);
+  assert.deepEqual(f.properties, page);
+  assert.equal(f.diagramProperties.get('--accent'), themePalette('light', 'ocean').accent);
   f.system(true);
   assert.equal(controller.palette, 'ocean');
-  assert.equal(f.properties.get('--surface'), themePalette('dark', 'ocean').surface);
+  assert.equal(f.properties.get('--surface'), themePalette('dark').surface);
+  assert.equal(f.diagramProperties.get('--surface'), themePalette('dark', 'ocean').surface);
   assert.throws(() => controller.setPalette('invalid'), RangeError);
   assert.equal(controller.palette, 'ocean');
   controller.destroy();

@@ -36,8 +36,9 @@ The renderer supports one representative record per entity; it is not a database
 engine or infrastructure discovery tool. Arbitrary Mermaid input alone cannot
 provide the ownership, events and record writes needed for connected playback.
 
-Theme and Mode selectors use `toolkit/theme.mjs`: Neutral is the default palette;
-Ocean and Forest are alternatives. Auto/Light/Dark controls brightness independently.
+Diagram theme and Mode selectors use `toolkit/theme.mjs`: Neutral is the default
+diagram palette; Ocean and Forest are alternatives. Scope palette tokens to the
+diagram canvas and legend, never the page. Auto/Light/Dark controls page brightness.
 Auto follows OS changes; both choices persist and exported HTML retains them.
 Media captures the resolved palette in opaque, self-contained SVG, including
 captions, warnings and records. Agent SVG/CLI rendering accepts `palette` as well.

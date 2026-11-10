@@ -2,3 +2,6 @@
 
 .nav nav{flex-wrap:wrap}.theme-control{display:flex;align-items:center;gap:7px}.theme-control>span{font-size:11px;color:var(--muted)}.theme-control select{min-height:36px;min-width:94px}
 @media(max-width:760px){.nav .theme-control{flex:1 1 calc(50% - 10px);justify-content:space-between}.nav .theme-control select{flex:1;min-width:0}}
+
+.hero-figure figcaption{flex-wrap:wrap;gap:14px}.figure-tools{display:flex;align-items:center;gap:12px}.diagram-scroll{background-color:var(--surface)}
+@media(max-width:760px){.figure-tools{width:100%;justify-content:space-between}.diagram-theme select{min-width:90px}}

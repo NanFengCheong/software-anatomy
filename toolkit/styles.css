@@ -23,3 +23,7 @@
 /* Keep both theme choices named and visible on small screens. */
 .theme-control{gap:7px}.theme-control>span{font:10px var(--mono);color:var(--muted)}.theme-control select{min-height:36px;min-width:94px;font-size:12px;padding:8px 25px 8px 10px}
 @media(max-width:700px){.top-actions{gap:10px}.theme-control{flex:1 1 calc(50% - 10px);justify-content:space-between}.theme-control select{flex:1;min-width:0}.top-actions>.button{flex:1;justify-content:center}}
+
+/* Diagram styling is local to the canvas and its legend. */
+.canvas-scroll,.diagram-legend{background-color:var(--surface)}.diagram-heading{flex-wrap:wrap;gap:14px}.diagram-options{display:flex;align-items:center;gap:14px}.diagram-theme{flex:initial;justify-content:initial}.diagram-theme select{flex:initial}
+@media(max-width:700px){.top-actions>.theme-control{flex-basis:100%}.diagram-options{width:100%;justify-content:space-between}.diagram-theme{flex:initial}.diagram-theme select{flex:initial;width:110px}}

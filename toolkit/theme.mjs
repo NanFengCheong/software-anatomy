@@ -75,7 +75,7 @@ export function resolveTheme(preference, darkMatches) {
 }
 
 /** Apply a saved preference, follow OS changes in Auto, and release listeners. */
-export function installTheme(root, select, { initial, paletteSelect, palette: initialPalette } = {}) {
+export function installTheme(root, select, { initial, paletteSelect, palette: initialPalette, diagrams = [] } = {}) {
   const document = root.ownerDocument;
   const window = document.defaultView;
   const html = document.documentElement;
@@ -96,9 +96,12 @@ export function installTheme(root, select, { initial, paletteSelect, palette: in
     root.dataset.theme = preference; root.dataset.resolvedTheme = resolved;
     html.dataset.palette = palette; root.dataset.palette = palette;
     html.style.colorScheme = resolved;
-    // These same tokens are used to paint standalone exports, avoiding browser
-    // system colors or an export that depends on the host document's stylesheet.
-    for (const [key, value] of Object.entries(themePalette(resolved, palette))) html.style.setProperty(`--${key.replace(/[A-Z]/g, char => '-' + char.toLowerCase())}`, value);
+    // Page appearance stays neutral. Diagram palettes are scoped to their own
+    // surfaces and use the same tokens as standalone image/GIF exports.
+    for (const target of [html, ...diagrams]) {
+      const colors = themePalette(resolved, target === html ? 'neutral' : palette);
+      for (const [key, value] of Object.entries(colors)) target.style.setProperty(`--${key.replace(/[A-Z]/g, char => '-' + char.toLowerCase())}`, value);
+    }
     if (select) select.value = preference;
     if (paletteSelect) paletteSelect.value = palette;
     if (persist) { try {
