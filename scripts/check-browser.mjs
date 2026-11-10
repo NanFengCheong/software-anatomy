@@ -267,6 +267,6 @@ try {
   siteServer?.closeAllConnections();
   if (siteServer) await new Promise(done=>siteServer.close(done));
   socket?.close(); chrome.kill('SIGTERM');
-  await new Promise(done => chrome.exitCode !== null ? done() : chrome.once('exit', done));
-  await rm(profile, { recursive: true, force: true });
+  await new Promise(done => chrome.exitCode !== null || chrome.signalCode !== null ? done() : chrome.once('exit', done));
+  await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
